@@ -77,7 +77,7 @@ async def handle_up_command(client: Client, message: Message):
 
     if args.web:
         download_link = f"{args.web.rstrip('/')}/{relative_path.replace(os.sep, '/')}"
-        await message.reply(f"🔗 Link de descarga: {download_link}")
+        await message.reply(f"🔗 Link de descarga: `{download_link}`")
     else:
         await message.reply(f"✅ Archivo guardado como `{relative_path}` en `{VAULT_FOLDER}`.")
 
