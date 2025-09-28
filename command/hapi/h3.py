@@ -3,6 +3,7 @@ import os
 import html
 from flask import send_file, after_this_request
 from command.get_files.h3_links import obtener_titulo_y_imagenes
+import re
 
 DOWNLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', '..', 'downloads')
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
