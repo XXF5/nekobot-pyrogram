@@ -18,7 +18,8 @@ import base64
 from cryptography.fernet import Fernet
 import hashlib
 from command.hapi.h3 import create_3hentai_cbz, serve_and_clean
-
+from command.hapi.nh import download_nhentai as create_nhentai_cbz
+from command.hapi.nh import serve_and_clean as serve_and_clean_nh
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() 
             for text in re.split(r'(\d+)', s)]
@@ -616,6 +617,16 @@ def api_download_3hentai(code):
     except Exception as e:
         return jsonify({"error": f"Error al descargar desde 3hentai: {str(e)}"}), 500
 
+
+@explorer.route("/api/dnh/<int:code>")
+#@login_required
+def api_download_nhentai(code):
+    try:
+        cbz_path, filename = create_nhentai_cbz(code)
+        return serve_and_clean_nh(cbz_path)
+    except Exception as e:
+        return jsonify({"error": f"Error al descargar desde nhentai: {str(e)}"}), 500
+        
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
 def rename_item():
