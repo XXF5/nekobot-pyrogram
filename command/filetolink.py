@@ -81,6 +81,25 @@ async def handle_up_command(client: Client, message: Message):
     else:
         await message.reply(f"✅ Archivo guardado como `{relative_path}` en `{VAULT_FOLDER}`.")
 
+
+async def handle_auto_up_command(client: Client, message: Message):
+    from arg_parser import get_args
+    args = get_args()
+
+    fname, fid, size_mb = get_info(message)
+    raw_path = fname or "archivo"
+    safe_parts = [secure_filename(p) for p in raw_path.split("/")]
+    relative_path = os.path.join(*safe_parts)
+    full_path = os.path.join(VAULT_FOLDER, relative_path)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+    await client.download_media(message, full_path)
+
+    if args.web:
+        download_link = f"{args.web.rstrip('/')}/{relative_path.replace(os.sep, '/')}"
+        await message.reply(f"🔗 Link de descarga: `{download_link}`")
+    else:
+        await message.reply(f"✅ Archivo guardado como `{relative_path}` en `{VAULT_FOLDER}`.")
 async def list_vault_files(client: Client, message: Message):
     if not os.path.isdir(VAULT_FOLDER):
         await client.send_message(message.from_user.id, "📁 La carpeta está vacía o no existe.")
