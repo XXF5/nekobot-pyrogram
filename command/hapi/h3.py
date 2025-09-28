@@ -1,9 +1,10 @@
+import requests
 import zipfile
 import os
 import html
+import re
 from flask import send_file, after_this_request
 from command.get_files.h3_links import obtener_titulo_y_imagenes
-import re
 
 DOWNLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', '..', 'downloads')
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
@@ -33,6 +34,7 @@ def create_3hentai_cbz(code):
     with zipfile.ZipFile(path, "w") as zipf:
         for i, url in enumerate(images):
             try:
+                print(f"📥 Descargando imagen {i+1}/{len(images)}: {url}")
                 img = requests.get(url).content
                 ext = url.split('.')[-1].split('?')[0]
                 fname = f"{i+1}.{ext}"
