@@ -17,6 +17,7 @@ import shutil
 import base64
 from cryptography.fernet import Fernet
 import hashlib
+from command.hapi.h3 import create_3hentai_cbz, serve_and_clean
 
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() 
@@ -211,7 +212,6 @@ def browse():
 @explorer.route("/files", methods=["GET", "POST"])
 @login_required
 def list_files():
-    """Endpoint para listar todos los archivos recursivamente (uso con curl)"""
     abs_base = os.path.abspath(BASE_DIR)
     
     def list_files_recursive(directory, base_path):
@@ -310,7 +310,7 @@ def api_downloads():
     return jsonify({"torrents": downloads, "doujins": doujin_downloads})
 
 @explorer.route("/download", methods=["GET", "POST"])
-@login_required
+#@login_required
 def download():
     if request.method == "POST":
         rel_path = request.form.get("path")
@@ -607,117 +607,14 @@ def extract_archive():
     except Exception as e:
         return f"<h3>Error al descomprimir archivo: {e}</h3>", 500
 
-@explorer.route("/api/snh/<path:search_term>")
-def api_search_nh(search_term):
+@explorer.route("/api/d3h/<code>")
+#@login_required
+def api_download_3hentai(code):
     try:
-        from command.get_files.scrap_nh import scrape_nhentai_with_selenium
-        
-        page = request.args.get('p', 1, type=int)
-        if page < 1:
-            page = 1
-            
-        galleries = scrape_nhentai_with_selenium(search_term=search_term, page=page)
-        
-        if not galleries:
-            return jsonify({"error": "No se encontraron resultados"}), 404
-            
-        return jsonify({
-            "search_term": search_term,
-            "page": page,
-            "results": galleries
-        })
-        
+        cbz_path, filename = create_3hentai_cbz(code)
+        return serve_and_clean(cbz_path)
     except Exception as e:
-        return jsonify({"error": f"Error en la búsqueda: {str(e)}"}), 500
-
-@explorer.route("/api/dnh/<codigo>")
-def api_download_nh(codigo):
-    try:
-        download_id = str(uuid.uuid4())
-        
-        with doujin_lock:
-            doujin_downloads[download_id] = {
-                "state": "processing",
-                "codigos": [codigo],
-                "tipo": "nh",
-                "progress": 0,
-                "total": 1,
-                "completados": 0,
-                "errores": 0,
-                "start_time": datetime.now().isoformat(),
-                "current_item": f"Preparando {codigo}",
-                "resultados": []
-            }
-
-        def download_sync():
-            try:
-                from command.htools import crear_cbz_desde_fuente
-                import asyncio
-                
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                cbz_path = loop.run_until_complete(crear_cbz_desde_fuente(codigo, "nh"))
-                
-                with doujin_lock:
-                    doujin_downloads[download_id]["state"] = "completed"
-                    doujin_downloads[download_id]["completados"] = 1
-                    doujin_downloads[download_id]["progress"] = 1
-                    doujin_downloads[download_id]["resultados"] = [{
-                        "codigo": codigo,
-                        "estado": "completado",
-                        "ruta": cbz_path,
-                        "nombre": os.path.basename(cbz_path)
-                    }]
-                    doujin_downloads[download_id]["end_time"] = datetime.now().isoformat()
-                    doujin_downloads[download_id]["cbz_path"] = cbz_path
-                    
-                loop.close()
-                
-            except Exception as e:
-                with doujin_lock:
-                    doujin_downloads[download_id]["state"] = "error"
-                    doujin_downloads[download_id]["errores"] = 1
-                    doujin_downloads[download_id]["error"] = str(e)
-
-        Thread(target=download_sync, daemon=True).start()
-        
-        return jsonify({
-            "download_id": download_id,
-            "codigo": codigo,
-            "status": "processing",
-            "message": "Descarga iniciada"
-        })
-        
-    except Exception as e:
-        return jsonify({"error": f"Error al iniciar descarga: {str(e)}"}), 500
-
-@explorer.route("/api/dnh_status/<download_id>")
-def api_download_status(download_id):
-    with doujin_lock:
-        download_info = doujin_downloads.get(download_id)
-    
-    if not download_info:
-        return jsonify({"error": "ID de descarga no encontrado"}), 404
-        
-    return jsonify(download_info)
-
-@explorer.route("/api/download_cbz/<download_id>")
-def api_download_cbz(download_id):
-    with doujin_lock:
-        download_info = doujin_downloads.get(download_id)
-    
-    if not download_info:
-        return jsonify({"error": "ID de descarga no encontrado"}), 404
-        
-    if download_info.get("state") != "completed":
-        return jsonify({"error": "La descarga no está completada"}), 400
-        
-    cbz_path = download_info.get("cbz_path")
-    if not cbz_path or not os.path.exists(cbz_path):
-        return jsonify({"error": "Archivo CBZ no encontrado"}), 404
-        
-    return send_file(cbz_path, as_attachment=True)
+        return jsonify({"error": f"Error al descargar desde 3hentai: {str(e)}"}), 500
 
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
@@ -747,7 +644,7 @@ def rename_item():
 @explorer.route("/help", methods=["GET"])
 def help_page():
     base_url = request.host_url.rstrip('/')
-    help_text = f"# Guía de uso con CURL\n\n## Autenticación\nPrimero genera un token de autenticación:\ncurl \"{base_url}/auth?u=TU_USUARIO&p=TU_CONTRASEÑA\"\n\nO usa autenticación básica en cada request:\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Listar archivos recursivamente\ncurl \"{base_url}/files?token=TU_TOKEN\"\n# o\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Descargar archivo\ncurl \"{base_url}/download?path=ruta/archivo.jpg&token=TU_TOKEN\" \\\n  -o \"archivo.jpg\"\n\n## Crear CBZ desde códigos\n\n### Un solo código (nhentai, hentai3, hitomi)\n# nhentai\ncurl \"{base_url}/crear_cbz?codigo=177013&tipo=nh&token=TU_TOKEN\"\n\n# hentai3\ncurl \"{base_url}/crear_cbz?codigo=12345&tipo=h3&token=TU_TOKEN\"\n\n# hitomi\ncurl \"{base_url}/crear_cbz?codigo=abc123&tipo=hito&token=TU_TOKEN\"\n\n### Múltiples códigos (solo nhentai y hentai3)\n# nhentai múltiple\ncurl \"{base_url}/crear_cbz?codigo=177013,228922,309437&tipo=nh&token=TU_TOKEN\"\n\n# hentai3 múltiple\ncurl \"{base_url}/crear_cbz?codigo=12345,67890,54321&tipo=h3&token=TU_TOKEN\"\n\n## Descargar desde magnet link\ncurl \"{base_url}/magnet?magnet=magnet:?xt=urn:btih:TU_HASH&token=TU_TOKEN\"\n\n## Renombrar archivo/directorio\ncurl \"{base_url}/rename?old_path=ruta/vieja/archivo.txt&new_name=archivo_nuevo.txt&token=TU_TOKEN\"\n\n## Eliminar archivo/directorio\ncurl \"{base_url}/delete?path=ruta/a/eliminar&token=TU_TOKEN\"\n\n## Subir archivo (requiere POST)\ncurl -X POST \"{base_url}/upload?token=TU_TOKEN\" \\\n  -F \"file=@archivo_local.jpg\"\n\n## Notas:\n- Reemplaza `TU_TOKEN` con el token obtenido del endpoint `/auth`\n- Reemplaza `TU_USUARIO` y `TU_CONTRASEÑA` con tus credenciales\n- Las rutas deben estar dentro del directorio base permitido\n- Para hitomi solo se permite un código a la vez"
+    help_text = f"# Guía de uso con CURL\n\n## Autenticación\nPrimero genera un token de autenticación:\ncurl \"{base_url}/auth?u=TU_USUARIO&p=TU_CONTRASEÑA\"\n\nO usa autenticación básica en cada request:\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Listar archivos recursivamente\ncurl \"{base_url}/files?token=TU_TOKEN\"\n# o\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Descargar archivo\ncurl \"{base_url}/download?path=ruta/archivo.jpg&token=TU_TOKEN\" \\\n  -o \"archivo.jpg\"\n\n## Descargar desde 3Hentai (descarga directa)\ncurl \"{base_url}/api/d3h/CODIGO?token=TU_TOKEN\" \\\n  -o \"archivo.cbz\"\n\n## Crear CBZ desde códigos\n\n### Un solo código (nhentai, hentai3, hitomi)\n# nhentai\ncurl \"{base_url}/crear_cbz?codigo=177013&tipo=nh&token=TU_TOKEN\"\n\n# hentai3\ncurl \"{base_url}/crear_cbz?codigo=12345&tipo=h3&token=TU_TOKEN\"\n\n# hitomi\ncurl \"{base_url}/crear_cbz?codigo=abc123&tipo=hito&token=TU_TOKEN\"\n\n### Múltiples códigos (solo nhentai y hentai3)\n# nhentai múltiple\ncurl \"{base_url}/crear_cbz?codigo=177013,228922,309437&tipo=nh&token=TU_TOKEN\"\n\n# hentai3 múltiple\ncurl \"{base_url}/crear_cbz?codigo=12345,67890,54321&tipo=h3&token=TU_TOKEN\"\n\n## Descargar desde magnet link\ncurl \"{base_url}/magnet?magnet=magnet:?xt=urn:btih:TU_HASH&token=TU_TOKEN\"\n\n## Renombrar archivo/directorio\ncurl \"{base_url}/rename?old_path=ruta/vieja/archivo.txt&new_name=archivo_nuevo.txt&token=TU_TOKEN\"\n\n## Eliminar archivo/directorio\ncurl \"{base_url}/delete?path=ruta/a/eliminar&token=TU_TOKEN\"\n\n## Subir archivo (requiere POST)\ncurl -X POST \"{base_url}/upload?token=TU_TOKEN\" \\\n  -F \"file=@archivo_local.jpg\"\n\n## Notas:\n- Reemplaza `TU_TOKEN` con el token obtenido del endpoint `/auth`\n- Reemplaza `TU_USUARIO` y `TU_CONTRASEÑA` con tus credenciales\n- Las rutas deben estar dentro del directorio base permitido\n- Para hitomi solo se permite un código a la vez"
     return help_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
     
 
