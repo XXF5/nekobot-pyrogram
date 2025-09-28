@@ -1,52 +1,25 @@
-import requests, zipfile, os, re, html
-from bs4 import BeautifulSoup
+import zipfile
+import os
+import html
 from flask import send_file, after_this_request
+from command.get_files.h3_links import obtener_titulo_y_imagenes
 
 DOWNLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', '..', 'downloads')
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-DL_BASE = "https://es.3hentai.net/d"
-
 def sanitize(name):
     return re.sub(r'[\\/*?:"<>|]', '', name)
 
-def extract_title(html_text):
-    soup = BeautifulSoup(html_text, "html.parser")
-    title_tag = soup.find('title')
-    if title_tag:
-        return sanitize(html.unescape(title_tag.text.strip()))
-    return "SinTitulo"
-
 def fetch_images_3hentai(code):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-    }
+    datos = obtener_titulo_y_imagenes(code, cover=False)
     
-    base_url = f"{DL_BASE}/{code}"
-    
-    try:
-        res = requests.get(base_url, headers=headers)
-        if res.status_code == 404:
-            return None, []
-
-        title = extract_title(res.text)
-        images = []
-        index = 1
-
-        while True:
-            page_url = f"{base_url}/{index}/"
-            res = requests.get(page_url, headers=headers)
-            if res.status_code == 404:
-                break
-            soup = BeautifulSoup(res.content, "html.parser")
-            found = re.findall(r'https?://[^"\']+\.(?:jpg|jpeg|png|webp)', str(soup))
-            images.extend(found)
-            index += 1
-
-        return title, images
-    except Exception as e:
-        print(f"Error al acceder {base_url}: {e}")
+    if not datos["imagenes"]:
         return None, []
+    
+    title = sanitize(html.unescape(datos["texto"]))
+    images = datos["imagenes"]
+    
+    return title, images
 
 def create_3hentai_cbz(code):
     title, images = fetch_images_3hentai(code)
