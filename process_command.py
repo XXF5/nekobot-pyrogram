@@ -25,7 +25,7 @@ def is_bot_protect():
     except Exception as e:
         print(f"[!] Error al acceder a bot_cmd.db: {e}")
         return False
-
+auto_files_users = {}
 auto_users = {}
 
 def cmd(command_env, int_lvl):
@@ -371,10 +371,17 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
             reply = message.reply_to_message
             if reply and (reply.video or (reply.document and reply.document.mime_type.startswith("video/"))):
                 await cambiar_miniatura(client, message, reply)
-                
-    elif command in ("/upfile", "/clearfiles", "/listfiles", "/sendfile"):
+
+
+    elif command in ("/upfile", "/clearfiles", "/listfiles", "/sendfile", "/autoup"):
         if cmd("filetolink", int_lvl):
-            from command.filetolink import handle_up_command, clear_vault_files, list_vault_files, send_vault_file_by_index
+            from command.filetolink import (
+                handle_up_command,
+                clear_vault_files,
+                list_vault_files,
+                send_vault_file_by_index,
+                handle_auto_up_command
+            )
             if command == "/upfile":
                 await handle_up_command(client, message)
             elif command == "/clearfiles":
@@ -383,6 +390,15 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                 await list_vault_files(client, message)
             elif command == "/sendfile":
                 await send_vault_file_by_index(client, message)
+            elif command == "/autoup":
+                auto_files_users[user_id] = not auto_files_users.get(user_id, False)
+                status = "✅ Auto-upload activado." if auto_files_users[user_id] else "🛑 Auto-upload desactivado."
+                await client.send_message(chat_id=message.chat.id, text=status, protect_content=False)
+
+    elif (message.document or message.video or message.audio or message.voice or message.photo or message.animation) and auto_files_users.get(user_id, False):
+        if cmd("filetolink", int_lvl):
+            from command.filetolink import handle_auto_up_command
+            await asyncio.create_task(handle_auto_up_command(client, message))
 
     elif command in ("/scan", "/multiscan", "/resumecodes", "/resumetxtcodes", "/codesplit"):
         if cmd("webtools", int_lvl):
