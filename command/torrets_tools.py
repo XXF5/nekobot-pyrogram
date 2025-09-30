@@ -213,11 +213,11 @@ def search_sukebei(query):
                     if not name_cell:
                         continue
                     
-                    name_link = name_cell.find('a', href=lambda x: x and '/view/' in x)
-                    if not name_link:
+                    name_links = name_cell.find_all('a', href=lambda x: x and '/view/' in x)
+                    if not name_links:
                         continue
                     
-                    name = name_link.get_text(strip=True)
+                    name = name_links[-1].get_text(strip=True)
                     
                     torrent_link = None
                     magnet_link = None
