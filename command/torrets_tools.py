@@ -67,7 +67,11 @@ def search_nyaa(query):
             
             for row in rows:
                 try:
-                    name_link = row.find('a', href=lambda x: x and '/view/' in x)
+                    name_cell = row.find('td', colspan="2")
+                    if not name_cell:
+                        continue
+                    
+                    name_link = name_cell.find('a', href=lambda x: x and '/view/' in x)
                     if not name_link:
                         continue
                     
@@ -84,7 +88,7 @@ def search_nyaa(query):
                         elif href.startswith('magnet:'):
                             magnet_link = href
                     
-                    size_td = row.find('td', class_='text-center', string=lambda x: x and 'MiB' in x)
+                    size_td = row.find('td', class_='text-center', string=lambda x: x and 'MiB' in x or 'GiB' in x)
                     size = size_td.get_text(strip=True) if size_td else "N/A"
                     
                     date_td = row.find('td', class_='text-center', attrs={'data-timestamp': True})
@@ -206,7 +210,11 @@ def search_sukebei(query):
                 
             for row in rows:
                 try:
-                    name_link = row.find('a', href=lambda x: x and '/view/' in x)
+                    name_cell = row.find('td', colspan="2")
+                    if not name_cell:
+                        continue
+                    
+                    name_link = name_cell.find('a', href=lambda x: x and '/view/' in x)
                     if not name_link:
                         continue
                     
