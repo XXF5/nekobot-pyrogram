@@ -71,11 +71,11 @@ def search_nyaa(query):
                     if not name_cell:
                         continue
                     
-                    name_link = name_cell.find('a', href=lambda x: x and '/view/' in x)
-                    if not name_link:
+                    name_links = name_cell.find_all('a', href=lambda x: x and '/view/' in x)
+                    if not name_links:
                         continue
                     
-                    name = name_link.get_text(strip=True)
+                    name = name_links[-1].get_text(strip=True)
                     
                     torrent_link = None
                     magnet_link = None
@@ -133,7 +133,6 @@ def search_nyaa(query):
         output += "\n"
     
     return output
-
 async def search_in_nyaa(client, message, search_query):
     current_time = time.time()
     expired_keys = [key for key, data in nyaa_cache.items() if current_time - data['timestamp'] > CACHE_DURATION]
