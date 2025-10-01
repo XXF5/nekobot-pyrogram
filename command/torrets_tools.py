@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from command.torrets_dl import process_magnet_download_telegram
+from command.torrets_dl import process_magnet_download_telegram, download_from_magnet_or_torrent, get_download_progress, cleanup_old_downloads
 
 nyaa_cache = {}
 sukebei_cache = {}
