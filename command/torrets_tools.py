@@ -354,7 +354,10 @@ async def show_nyaa_result(client, message, cache_key, index):
     
     row3_buttons = []
     if any('magnet' in r for r in results):
-        row3_buttons.append(InlineKeyboardButton("🔽DL All", callback_data=f"nyaa_dl_all:{cache_key}"))
+        if index == 0:
+            row3_buttons.append(InlineKeyboardButton("🔽DL All", callback_data=f"nyaa_dl_all:{cache_key}"))
+        elif index == len(results) - 1:
+            row3_buttons.append(InlineKeyboardButton("🔽DL All Reverse", callback_data=f"nyaa_dl_all_reverse:{cache_key}"))
     
     if row3_buttons:
         keyboard.append(row3_buttons)
@@ -428,7 +431,10 @@ async def show_sukebei_result(client, message, cache_key, index):
     
     row3_buttons = []
     if any('magnet' in r for r in results):
-        row3_buttons.append(InlineKeyboardButton("🔽DL All", callback_data=f"sukebei_dl_all:{cache_key}"))
+        if index == 0:
+            row3_buttons.append(InlineKeyboardButton("🔽DL All", callback_data=f"sukebei_dl_all:{cache_key}"))
+        elif index == len(results) - 1:
+            row3_buttons.append(InlineKeyboardButton("🔽DL All Reverse", callback_data=f"sukebei_dl_all_reverse:{cache_key}"))
     
     if row3_buttons:
         keyboard.append(row3_buttons)
@@ -523,6 +529,12 @@ async def handle_nyaa_callback(client, callback_query):
             if 'magnet' in result:
                 await process_magnet_download_telegram(client, callback_query.message, result['magnet'], False)
         
+    elif action == "nyaa_dl_all_reverse":
+        await callback_query.answer("🔽 Iniciando descarga de todos los resultados en orden inverso...")
+        for result in reversed(results):
+            if 'magnet' in result:
+                await process_magnet_download_telegram(client, callback_query.message, result['magnet'], False)
+        
     elif action == "nyaa_prev":
         new_index = max(0, current_index - 1)
         await show_nyaa_result(client, callback_query.message, cache_key, new_index)
@@ -595,6 +607,12 @@ async def handle_sukebei_callback(client, callback_query):
     elif action == "sukebei_dl_all":
         await callback_query.answer("🔽 Iniciando descarga de todos los resultados...")
         for result in results:
+            if 'magnet' in result:
+                await process_magnet_download_telegram(client, callback_query.message, result['magnet'], False)
+        
+    elif action == "sukebei_dl_all_reverse":
+        await callback_query.answer("🔽 Iniciando descarga de todos los resultados en orden inverso...")
+        for result in reversed(results):
             if 'magnet' in result:
                 await process_magnet_download_telegram(client, callback_query.message, result['magnet'], False)
         
