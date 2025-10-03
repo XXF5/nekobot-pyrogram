@@ -1,4 +1,3 @@
-```python
 import os
 import asyncio
 import cloudscraper
@@ -862,4 +861,3 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
     
     elif data == "noop":
         await callback_query.answer()
-```
