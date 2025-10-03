@@ -1,3 +1,4 @@
+```python
 import os
 import asyncio
 import cloudscraper
@@ -278,33 +279,20 @@ async def download_full_manga(user_id, chapters, chapter_urls, language, manga_n
     
     return downloaded_files
 
-def create_navigation_buttons(total_items, current_page, prefix):
-    nav_buttons = []
-    if total_items > 10:
-        if current_page > 0:
-            nav_buttons.append(InlineKeyboardButton("⏪", callback_data=f"{prefix}_first_page"))
-            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"{prefix}_prev_page"))
-        
-        end_idx = min((current_page + 1) * 10, total_items)
-        if end_idx < total_items:
-            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"{prefix}_next_page"))
-            nav_buttons.append(InlineKeyboardButton("⏩", callback_data=f"{prefix}_last_page"))
+async def download_multiple_chapters(user_id, start_idx, end_idx, chapters, chapter_urls, language):
+    manga_client = MangaClient(language)
+    downloaded_files = []
     
-    return nav_buttons
-
-def create_chapter_buttons(chapters, start_idx, end_idx):
-    keyboard = []
     for i in range(start_idx, end_idx):
-        keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
-    return keyboard
-
-def create_action_buttons():
-    return [
-        [InlineKeyboardButton("📥 Enviar 10 Capítulos", callback_data="send_10"),
-         InlineKeyboardButton("📁 Guardar 10 Capítulos", callback_data="save_10")],
-        [InlineKeyboardButton("📥 Enviar Todo", callback_data="send_all"),
-         InlineKeyboardButton("📁 Guardar Todo", callback_data="save_all")]
-    ]
+        chapter_name = chapters[i]
+        chapter_url = chapter_urls[i]
+        
+        cbz_file = await download_chapter(chapter_url, chapter_name, manga_client)
+        if cbz_file:
+            downloaded_files.append(cbz_file)
+    
+    manga_client.close()
+    return downloaded_files
 
 async def handle_manga_search(client: Client, message: Message, textori: str):
     user_id = message.from_user.id
@@ -354,14 +342,34 @@ async def handle_manga_search(client: Client, message: Message, textori: str):
         start_idx = current_page * 10
         end_idx = min(start_idx + 10, total_chapters)
         
-        keyboard = create_chapter_buttons(chapters, start_idx, end_idx)
+        keyboard = []
+        for i in range(start_idx, end_idx):
+            keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
         
-        nav_buttons = create_navigation_buttons(total_chapters, current_page, "")
-        if nav_buttons:
-            keyboard.append(nav_buttons)
+        nav_buttons = []
+        if total_chapters > 10:
+            if current_page > 0:
+                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="first_page"))
+                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="prev_page"))
+            
+            if end_idx < total_chapters:
+                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="next_page"))
+                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="last_page"))
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
         
-        action_buttons = create_action_buttons()
-        keyboard.extend(action_buttons)
+        action_buttons = [
+            InlineKeyboardButton("📥 Descargar Todos", callback_data="chapter_all"),
+            InlineKeyboardButton("📁 Guardar Todos", callback_data="save_all")
+        ]
+        keyboard.append(action_buttons)
+        
+        manga_buttons = [
+            InlineKeyboardButton("📥 Descargar Manga", callback_data="download_manga"),
+            InlineKeyboardButton("📁 Guardar Manga", callback_data="save_manga")
+        ]
+        keyboard.append(manga_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -423,11 +431,22 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = current_page * 10
         end_idx = min(start_idx + 10, total_mangas)
         
-        keyboard = create_chapter_buttons(mangas, start_idx, end_idx)
+        keyboard = []
+        for i in range(start_idx, end_idx):
+            keyboard.append([InlineKeyboardButton(mangas[i], callback_data=f"manga_{i}")])
         
-        nav_buttons = create_navigation_buttons(total_mangas, current_page, "manga")
-        if nav_buttons:
-            keyboard.append(nav_buttons)
+        nav_buttons = []
+        if total_mangas > 10:
+            if current_page > 0:
+                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="manga_first_page"))
+                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="manga_prev_page"))
+            
+            if end_idx < total_mangas:
+                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="manga_next_page"))
+                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="manga_last_page"))
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -464,11 +483,22 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = new_page * 10
         end_idx = min(start_idx + 10, total_mangas)
         
-        keyboard = create_chapter_buttons(manga_list, start_idx, end_idx)
+        keyboard = []
+        for i in range(start_idx, end_idx):
+            keyboard.append([InlineKeyboardButton(manga_list[i], callback_data=f"manga_{i}")])
         
-        nav_buttons = create_navigation_buttons(total_mangas, new_page, "manga")
-        if nav_buttons:
-            keyboard.append(nav_buttons)
+        nav_buttons = []
+        if total_mangas > 10:
+            if new_page > 0:
+                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="manga_first_page"))
+                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="manga_prev_page"))
+            
+            if end_idx < total_mangas:
+                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="manga_next_page"))
+                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="manga_last_page"))
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -523,14 +553,34 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = current_page * 10
         end_idx = min(start_idx + 10, total_chapters)
         
-        keyboard = create_chapter_buttons(chapters, start_idx, end_idx)
+        keyboard = []
+        for i in range(start_idx, end_idx):
+            keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
         
-        nav_buttons = create_navigation_buttons(total_chapters, current_page, "")
-        if nav_buttons:
-            keyboard.append(nav_buttons)
+        nav_buttons = []
+        if total_chapters > 10:
+            if current_page > 0:
+                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="first_page"))
+                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="prev_page"))
+            
+            if end_idx < total_chapters:
+                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="next_page"))
+                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="last_page"))
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
         
-        action_buttons = create_action_buttons()
-        keyboard.extend(action_buttons)
+        action_buttons = [
+            InlineKeyboardButton("📥 Descargar Todos", callback_data="chapter_all"),
+            InlineKeyboardButton("📁 Guardar Todos", callback_data="save_all")
+        ]
+        keyboard.append(action_buttons)
+        
+        manga_buttons = [
+            InlineKeyboardButton("📥 Descargar Manga", callback_data="download_manga"),
+            InlineKeyboardButton("📁 Guardar Manga", callback_data="save_manga")
+        ]
+        keyboard.append(manga_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -567,14 +617,34 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = new_page * 10
         end_idx = min(start_idx + 10, total_chapters)
         
-        keyboard = create_chapter_buttons(chapters, start_idx, end_idx)
+        keyboard = []
+        for i in range(start_idx, end_idx):
+            keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
         
-        nav_buttons = create_navigation_buttons(total_chapters, new_page, "")
-        if nav_buttons:
-            keyboard.append(nav_buttons)
+        nav_buttons = []
+        if total_chapters > 10:
+            if new_page > 0:
+                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="first_page"))
+                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="prev_page"))
+            
+            if end_idx < total_chapters:
+                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="next_page"))
+                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="last_page"))
+            
+            if nav_buttons:
+                keyboard.append(nav_buttons)
         
-        action_buttons = create_action_buttons()
-        keyboard.extend(action_buttons)
+        action_buttons = [
+            InlineKeyboardButton("📥 Descargar Todos", callback_data="chapter_all"),
+            InlineKeyboardButton("📁 Guardar Todos", callback_data="save_all")
+        ]
+        keyboard.append(action_buttons)
+        
+        manga_buttons = [
+            InlineKeyboardButton("📥 Descargar Manga", callback_data="download_manga"),
+            InlineKeyboardButton("📁 Guardar Manga", callback_data="save_manga")
+        ]
+        keyboard.append(manga_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -584,7 +654,7 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         )
         await callback_query.answer()
     
-    elif data == "save_10":
+    elif data == "save_all":
         if user_id not in chapters_cache:
             await callback_query.answer("La sesión ha expirado. Por favor, realiza una nueva búsqueda.")
             return
@@ -623,7 +693,47 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         manga_client.close()
         await progress_msg.edit_text(f"✅ Guardado completado. {len(saved_files)} capítulos guardados en vault.")
     
-    elif data == "save_all":
+    elif data == "download_manga":
+        if user_id not in chapters_cache:
+            await callback_query.answer("La sesión ha expirado. Por favor, realiza una nueva búsqueda.")
+            return
+        
+        cache_data = chapters_cache[user_id]
+        chapters = cache_data["chapters"]
+        chapter_urls = cache_data["chapter_urls"]
+        manga_name = cache_data["manga_name"]
+        language = cache_data["language"]
+        
+        total_chapters = len(chapters)
+        await callback_query.answer(f"Descargando {total_chapters} capítulos...")
+        
+        progress_msg = await callback_query.message.reply(f"📥 Descargando {manga_name}...\nProgreso: 0/{total_chapters} (0%)")
+        
+        manga_client = MangaClient(language)
+        
+        for i, (chapter_name, chapter_url) in enumerate(zip(chapters, chapter_urls)):
+            cbz_file = await download_chapter(chapter_url, chapter_name, manga_client)
+            if cbz_file:
+                try:
+                    await callback_query.message.reply_document(
+                        document=cbz_file,
+                        caption=f"{manga_name} - {chapter_name} ({i + 1}/{total_chapters})"
+                    )
+                    os.remove(cbz_file)
+                except Exception as e:
+                    await callback_query.message.reply(f"Error al enviar capítulo {chapter_name}: {str(e)}")
+            
+            progress = i + 1
+            percentage = (progress / total_chapters) * 100
+            try:
+                await progress_msg.edit_text(f"📥 Descargando {manga_name}...\nProgreso: {progress}/{total_chapters} ({percentage:.1f}%)")
+            except:
+                pass
+        
+        manga_client.close()
+        await progress_msg.edit_text(f"✅ Descarga completada. {total_chapters} capítulos enviados.")
+    
+    elif data == "save_manga":
         if user_id not in chapters_cache:
             await callback_query.answer("La sesión ha expirado. Por favor, realiza una nueva búsqueda.")
             return
@@ -637,14 +747,29 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         total_chapters = len(chapters)
         await callback_query.answer(f"Guardando {total_chapters} capítulos en vault...")
         
-        saved_files = await download_full_manga(user_id, chapters, chapter_urls, language, manga_name, True, client)
+        progress_msg = await callback_query.message.reply(f"📁 Guardando {manga_name}...\nProgreso: 0/{total_chapters} (0%)")
         
-        if saved_files:
-            await callback_query.message.reply(f"✅ Manga guardado completo. {len(saved_files)} capítulos guardados en vault.")
-        else:
-            await callback_query.message.reply("❌ Error al guardar el manga completo.")
+        manga_client = MangaClient(language)
+        saved_files = []
+        
+        for i, (chapter_name, chapter_url) in enumerate(zip(chapters, chapter_urls)):
+            cbz_file = await download_chapter(chapter_url, chapter_name, manga_client)
+            if cbz_file:
+                vault_file = save_to_vault(manga_name, chapter_name, cbz_file)
+                saved_files.append(vault_file)
+                os.remove(cbz_file)
+            
+            progress = i + 1
+            percentage = (progress / total_chapters) * 100
+            try:
+                await progress_msg.edit_text(f"📁 Guardando {manga_name}...\nProgreso: {progress}/{total_chapters} ({percentage:.1f}%)")
+            except:
+                pass
+        
+        manga_client.close()
+        await progress_msg.edit_text(f"✅ Guardado completado. {len(saved_files)} capítulos guardados en vault.")
     
-    elif data == "send_10":
+    elif data == "chapter_all":
         if user_id not in chapters_cache:
             await callback_query.answer("La sesión ha expirado. Por favor, realiza una nueva búsqueda.")
             return
@@ -665,7 +790,6 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         progress_msg = await callback_query.message.reply(f"📥 Descargando {chapters_to_download} capítulos...")
         
         manga_client = MangaClient(language)
-        downloaded_files = []
         
         for i in range(start_idx, end_idx):
             chapter_name = chapters[i]
@@ -673,68 +797,23 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
             
             cbz_file = await download_chapter(chapter_url, chapter_name, manga_client)
             if cbz_file:
-                downloaded_files.append(cbz_file)
+                try:
+                    await callback_query.message.reply_document(
+                        document=cbz_file,
+                        caption=f"¡Capítulo descargado! - {chapter_name} ({i - start_idx + 1}/{chapters_to_download})"
+                    )
+                    os.remove(cbz_file)
+                except Exception as e:
+                    await callback_query.message.reply(f"Error al enviar capítulo {chapter_name}: {str(e)}")
             
             progress = i - start_idx + 1
-            await progress_msg.edit_text(f"📥 Descargando... {progress}/{chapters_to_download}")
+            try:
+                await progress_msg.edit_text(f"📥 Descargando... {progress}/{chapters_to_download}")
+            except:
+                pass
         
         manga_client.close()
-        
-        if not downloaded_files:
-            await progress_msg.edit_text("Error al descargar los capítulos.")
-            return
-        
-        await progress_msg.edit_text(f"✅ Descarga completada. Enviando {len(downloaded_files)} archivos...")
-        
-        success_count = 0
-        for cbz_file in downloaded_files:
-            try:
-                await callback_query.message.reply_document(
-                    document=cbz_file,
-                    caption=f"¡Capítulo descargado! ({success_count + 1}/{len(downloaded_files)})"
-                )
-                success_count += 1
-                os.remove(cbz_file)
-            except Exception as e:
-                await callback_query.message.reply(f"Error al enviar archivo: {str(e)}")
-        
-        await progress_msg.edit_text(f"✅ Proceso completado. {success_count} capítulos enviados.")
-    
-    elif data == "send_all":
-        if user_id not in chapters_cache:
-            await callback_query.answer("La sesión ha expirado. Por favor, realiza una nueva búsqueda.")
-            return
-        
-        cache_data = chapters_cache[user_id]
-        chapters = cache_data["chapters"]
-        chapter_urls = cache_data["chapter_urls"]
-        manga_name = cache_data["manga_name"]
-        language = cache_data["language"]
-        
-        total_chapters = len(chapters)
-        await callback_query.answer(f"Descargando {total_chapters} capítulos...")
-        
-        downloaded_files = await download_full_manga(user_id, chapters, chapter_urls, language, manga_name, False, client)
-        
-        if not downloaded_files:
-            await callback_query.message.reply("Error al descargar el manga completo.")
-            return
-        
-        progress_msg = await callback_query.message.reply(f"✅ Descarga completada. Enviando {len(downloaded_files)} archivos...")
-        
-        success_count = 0
-        for cbz_file in downloaded_files:
-            try:
-                await callback_query.message.reply_document(
-                    document=cbz_file,
-                    caption=f"{manga_name} ({success_count + 1}/{len(downloaded_files)})"
-                )
-                success_count += 1
-                os.remove(cbz_file)
-            except Exception as e:
-                await callback_query.message.reply(f"Error al enviar archivo: {str(e)}")
-        
-        await progress_msg.edit_text(f"✅ Proceso completado. {success_count} capítulos enviados.")
+        await progress_msg.edit_text(f"✅ Proceso completado. {chapters_to_download} capítulos enviados.")
     
     elif data.startswith("chapter_"):
         try:
@@ -783,3 +862,4 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
     
     elif data == "noop":
         await callback_query.answer()
+```
