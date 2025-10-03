@@ -278,20 +278,33 @@ async def download_full_manga(user_id, chapters, chapter_urls, language, manga_n
     
     return downloaded_files
 
-async def download_multiple_chapters(user_id, start_idx, end_idx, chapters, chapter_urls, language):
-    manga_client = MangaClient(language)
-    downloaded_files = []
-    
-    for i in range(start_idx, end_idx):
-        chapter_name = chapters[i]
-        chapter_url = chapter_urls[i]
+def create_navigation_buttons(total_items, current_page, prefix):
+    nav_buttons = []
+    if total_items > 10:
+        if current_page > 0:
+            nav_buttons.append(InlineKeyboardButton("⏪", callback_data=f"{prefix}_first_page"))
+            nav_buttons.append(InlineKeyboardButton("◀️", callback_data=f"{prefix}_prev_page"))
         
-        cbz_file = await download_chapter(chapter_url, chapter_name, manga_client)
-        if cbz_file:
-            downloaded_files.append(cbz_file)
+        end_idx = min((current_page + 1) * 10, total_items)
+        if end_idx < total_items:
+            nav_buttons.append(InlineKeyboardButton("▶️", callback_data=f"{prefix}_next_page"))
+            nav_buttons.append(InlineKeyboardButton("⏩", callback_data=f"{prefix}_last_page"))
     
-    manga_client.close()
-    return downloaded_files
+    return nav_buttons
+
+def create_chapter_buttons(chapters, start_idx, end_idx):
+    keyboard = []
+    for i in range(start_idx, end_idx):
+        keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
+    return keyboard
+
+def create_action_buttons():
+    return [
+        [InlineKeyboardButton("📥 Enviar 10 Capítulos", callback_data="send_10"),
+         InlineKeyboardButton("📁 Guardar 10 Capítulos", callback_data="save_10")],
+        [InlineKeyboardButton("📥 Enviar Todo", callback_data="send_all"),
+         InlineKeyboardButton("📁 Guardar Todo", callback_data="save_all")]
+    ]
 
 async def handle_manga_search(client: Client, message: Message, textori: str):
     user_id = message.from_user.id
@@ -341,30 +354,14 @@ async def handle_manga_search(client: Client, message: Message, textori: str):
         start_idx = current_page * 10
         end_idx = min(start_idx + 10, total_chapters)
         
-        keyboard = []
-        for i in range(start_idx, end_idx):
-            keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
+        keyboard = create_chapter_buttons(chapters, start_idx, end_idx)
         
-        nav_buttons = []
-        if total_chapters > 10:
-            if current_page > 0:
-                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="first_page"))
-                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="prev_page"))
-            
-            if end_idx < total_chapters:
-                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="next_page"))
-                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="last_page"))
-            
-            if nav_buttons:
-                keyboard.append(nav_buttons)
+        nav_buttons = create_navigation_buttons(total_chapters, current_page, "")
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         
-        action_buttons = [
-            InlineKeyboardButton("📥 Enviar 10 Capítulos", callback_data="send_10"),
-            InlineKeyboardButton("📁 Guardar 10 Capítulos", callback_data="save_10"),
-            InlineKeyboardButton("📥 Enviar Todo", callback_data="send_all"),
-            InlineKeyboardButton("📁 Guardar Todo", callback_data="save_all")
-        ]
-        keyboard.append(action_buttons)
+        action_buttons = create_action_buttons()
+        keyboard.extend(action_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -426,22 +423,11 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = current_page * 10
         end_idx = min(start_idx + 10, total_mangas)
         
-        keyboard = []
-        for i in range(start_idx, end_idx):
-            keyboard.append([InlineKeyboardButton(mangas[i], callback_data=f"manga_{i}")])
+        keyboard = create_chapter_buttons(mangas, start_idx, end_idx)
         
-        nav_buttons = []
-        if total_mangas > 10:
-            if current_page > 0:
-                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="manga_first_page"))
-                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="manga_prev_page"))
-            
-            if end_idx < total_mangas:
-                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="manga_next_page"))
-                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="manga_last_page"))
-            
-            if nav_buttons:
-                keyboard.append(nav_buttons)
+        nav_buttons = create_navigation_buttons(total_mangas, current_page, "manga")
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -478,22 +464,11 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = new_page * 10
         end_idx = min(start_idx + 10, total_mangas)
         
-        keyboard = []
-        for i in range(start_idx, end_idx):
-            keyboard.append([InlineKeyboardButton(manga_list[i], callback_data=f"manga_{i}")])
+        keyboard = create_chapter_buttons(manga_list, start_idx, end_idx)
         
-        nav_buttons = []
-        if total_mangas > 10:
-            if new_page > 0:
-                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="manga_first_page"))
-                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="manga_prev_page"))
-            
-            if end_idx < total_mangas:
-                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="manga_next_page"))
-                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="manga_last_page"))
-            
-            if nav_buttons:
-                keyboard.append(nav_buttons)
+        nav_buttons = create_navigation_buttons(total_mangas, new_page, "manga")
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -548,30 +523,14 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = current_page * 10
         end_idx = min(start_idx + 10, total_chapters)
         
-        keyboard = []
-        for i in range(start_idx, end_idx):
-            keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
+        keyboard = create_chapter_buttons(chapters, start_idx, end_idx)
         
-        nav_buttons = []
-        if total_chapters > 10:
-            if current_page > 0:
-                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="first_page"))
-                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="prev_page"))
-            
-            if end_idx < total_chapters:
-                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="next_page"))
-                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="last_page"))
-            
-            if nav_buttons:
-                keyboard.append(nav_buttons)
+        nav_buttons = create_navigation_buttons(total_chapters, current_page, "")
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         
-        action_buttons = [
-            InlineKeyboardButton("📥 Enviar 10 Capítulos", callback_data="send_10"),
-            InlineKeyboardButton("📁 Guardar 10 Capítulos", callback_data="save_10"),
-            InlineKeyboardButton("📥 Enviar Todo", callback_data="send_all"),
-            InlineKeyboardButton("📁 Guardar Todo", callback_data="save_all")
-        ]
-        keyboard.append(action_buttons)
+        action_buttons = create_action_buttons()
+        keyboard.extend(action_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -608,30 +567,14 @@ async def handle_manga_callback(client: Client, callback_query: CallbackQuery):
         start_idx = new_page * 10
         end_idx = min(start_idx + 10, total_chapters)
         
-        keyboard = []
-        for i in range(start_idx, end_idx):
-            keyboard.append([InlineKeyboardButton(chapters[i], callback_data=f"chapter_{i}")])
+        keyboard = create_chapter_buttons(chapters, start_idx, end_idx)
         
-        nav_buttons = []
-        if total_chapters > 10:
-            if new_page > 0:
-                nav_buttons.append(InlineKeyboardButton("⏪", callback_data="first_page"))
-                nav_buttons.append(InlineKeyboardButton("◀️", callback_data="prev_page"))
-            
-            if end_idx < total_chapters:
-                nav_buttons.append(InlineKeyboardButton("▶️", callback_data="next_page"))
-                nav_buttons.append(InlineKeyboardButton("⏩", callback_data="last_page"))
-            
-            if nav_buttons:
-                keyboard.append(nav_buttons)
+        nav_buttons = create_navigation_buttons(total_chapters, new_page, "")
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         
-        action_buttons = [
-            InlineKeyboardButton("📥 Enviar 10 Capítulos", callback_data="send_10"),
-            InlineKeyboardButton("📁 Guardar 10 Capítulos", callback_data="save_10"),
-            InlineKeyboardButton("📥 Enviar Todo", callback_data="send_all"),
-            InlineKeyboardButton("📁 Guardar Todo", callback_data="save_all")
-        ]
-        keyboard.append(action_buttons)
+        action_buttons = create_action_buttons()
+        keyboard.extend(action_buttons)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
