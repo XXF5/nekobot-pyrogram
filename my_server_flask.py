@@ -18,6 +18,7 @@ import base64
 from cryptography.fernet import Fernet
 import hashlib
 from command.hapi.h3 import create_3hentai_cbz, serve_and_clean
+from command.get_files.scrap_nh import scrape_nhentai_with_selenium
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() 
             for text in re.split(r'(\d+)', s)]
