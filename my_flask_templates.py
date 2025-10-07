@@ -991,7 +991,6 @@ GALLERY_TEMPLATE = """
 </body>
 </html>
 """
-
 SEARCH_NH_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -1069,9 +1068,9 @@ SEARCH_NH_TEMPLATE = '''
             margin: 0 15px;
             font-weight: bold;
         }
-        .download-btn {
-            background: #28a745;
-            color: white;
+        .convert-btn {
+            background: #ffc107;
+            color: black;
             border: none;
             padding: 5px 10px;
             border-radius: 4px;
@@ -1082,6 +1081,16 @@ SEARCH_NH_TEMPLATE = '''
         .loading {
             opacity: 0.5;
         }
+        .convert-all-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -1091,6 +1100,7 @@ SEARCH_NH_TEMPLATE = '''
             <input type="number" name="p" value="{{ current_page }}" min="1" placeholder="Página">
             <button type="submit">Buscar</button>
         </form>
+        <button class="convert-all-btn" onclick="convertAllImages()">Convertir Todas las Imágenes a Base64</button>
     </div>
 
     {% if results %}
@@ -1100,16 +1110,17 @@ SEARCH_NH_TEMPLATE = '''
             {% if result.image_links %}
             <img src="{{ result.image_links[0] }}" alt="{{ result.name }}" 
                  id="img-{{ result.code }}"
+                 data-original-src="{{ result.image_links[0] }}"
                  onerror="this.src='https://via.placeholder.com/200x300?text=Imagen+no+disponible'">
             {% else %}
-            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen" id="img-{{ result.code }}">
+            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen" id="img-{{ result.code }}" data-original-src="">
             {% endif %}
             <div class="gallery-code">Código: {{ result.code }}</div>
             <div class="gallery-name">{{ result.name }}</div>
             <div style="margin-top: 10px;">
                 <a href="/api/dnh/{{ result.code }}">Descargar CBZ</a>
-                <button class="download-btn" onclick="downloadImage('{{ result.code }}', '{{ result.image_links[0] if result.image_links else "" }}')">
-                    Descargar Imagen
+                <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
+                    Convertir a Base64
                 </button>
             </div>
         </div>
@@ -1132,75 +1143,85 @@ SEARCH_NH_TEMPLATE = '''
     {% endif %}
 
     <script>
-        async function downloadImage(code, imageUrl) {
-            if (!imageUrl) return;
-            
+        async function convertToBase64(code) {
             const imgElement = document.getElementById(`img-${code}`);
             const galleryElement = document.getElementById(`gallery-${code}`);
             const btnElement = event.target;
+            const originalSrc = imgElement.dataset.originalSrc;
+            
+            if (!originalSrc || originalSrc.includes('base64') || originalSrc.includes('via.placeholder.com')) {
+                return;
+            }
             
             btnElement.disabled = true;
-            btnElement.textContent = 'Descargando...';
+            btnElement.textContent = 'Convirtiendo...';
             galleryElement.classList.add('loading');
             
             try {
-                const response = await fetch('/api/proxy-image?url=' + encodeURIComponent(imageUrl));
+                const response = await fetch('/api/proxy-image?url=' + encodeURIComponent(originalSrc));
                 const blob = await response.blob();
                 
                 const reader = new FileReader();
                 reader.onload = function() {
                     const base64 = reader.result;
                     imgElement.src = base64;
-                    
-                    const downloadLink = document.createElement('a');
-                    downloadLink.href = base64;
-                    downloadLink.download = `nhentai-${code}.jpg`;
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-                    
-                    btnElement.textContent = '¡Descargada!';
+                    btnElement.textContent = '¡Convertida!';
                     galleryElement.classList.remove('loading');
                     
                     setTimeout(() => {
                         btnElement.disabled = false;
-                        btnElement.textContent = 'Descargar Imagen';
+                        btnElement.textContent = 'Convertir a Base64';
                     }, 2000);
                 };
                 reader.readAsDataURL(blob);
                 
             } catch (error) {
-                console.error('Error descargando imagen:', error);
+                console.error('Error convirtiendo imagen:', error);
                 btnElement.textContent = 'Error';
                 galleryElement.classList.remove('loading');
                 
                 setTimeout(() => {
                     btnElement.disabled = false;
-                    btnElement.textContent = 'Descargar Imagen';
+                    btnElement.textContent = 'Convertir a Base64';
                 }, 2000);
             }
         }
 
-        async function downloadAllImages() {
-            const downloadButtons = document.querySelectorAll('.download-btn');
-            for (let i = 0; i < downloadButtons.length; i++) {
-                const btn = downloadButtons[i];
+        async function convertAllImages() {
+            const convertButtons = document.querySelectorAll('.convert-btn');
+            const convertAllBtn = document.querySelector('.convert-all-btn');
+            
+            convertAllBtn.disabled = true;
+            convertAllBtn.textContent = 'Convirtiendo todas...';
+            
+            for (let i = 0; i < convertButtons.length; i++) {
+                const btn = convertButtons[i];
                 const galleryElement = btn.closest('.gallery-item');
                 const code = galleryElement.id.replace('gallery-', '');
                 const imgElement = document.getElementById(`img-${code}`);
-                const originalSrc = imgElement.dataset.originalSrc || imgElement.src;
+                const originalSrc = imgElement.dataset.originalSrc;
                 
-                if (originalSrc && !originalSrc.includes('via.placeholder.com')) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                if (originalSrc && !originalSrc.includes('base64') && !originalSrc.includes('via.placeholder.com')) {
                     btn.click();
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
+            
+            convertAllBtn.disabled = false;
+            convertAllBtn.textContent = 'Convertir Todas las Imágenes a Base64';
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const images = document.querySelectorAll('img[data-original-src]');
+            images.forEach(img => {
+                img.addEventListener('error', function() {
+                    if (this.src && !this.src.includes('via.placeholder.com')) {
+                        this.src = 'https://via.placeholder.com/200x300?text=Error+cargando+imagen';
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>
-'''
-
-
 
