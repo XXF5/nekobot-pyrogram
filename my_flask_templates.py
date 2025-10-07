@@ -1069,6 +1069,19 @@ SEARCH_NH_TEMPLATE = '''
             margin: 0 15px;
             font-weight: bold;
         }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+            font-size: 11px;
+        }
+        .loading {
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -1083,17 +1096,21 @@ SEARCH_NH_TEMPLATE = '''
     {% if results %}
     <div class="gallery-grid">
         {% for result in results %}
-        <div class="gallery-item">
+        <div class="gallery-item" id="gallery-{{ result.code }}">
             {% if result.image_links %}
             <img src="{{ result.image_links[0] }}" alt="{{ result.name }}" 
+                 id="img-{{ result.code }}"
                  onerror="this.src='https://via.placeholder.com/200x300?text=Imagen+no+disponible'">
             {% else %}
-            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen">
+            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen" id="img-{{ result.code }}">
             {% endif %}
             <div class="gallery-code">Código: {{ result.code }}</div>
             <div class="gallery-name">{{ result.name }}</div>
             <div style="margin-top: 10px;">
                 <a href="/api/dnh/{{ result.code }}">Descargar CBZ</a>
+                <button class="download-btn" onclick="downloadImage('{{ result.code }}', '{{ result.image_links[0] if result.image_links else "" }}')">
+                    Descargar Imagen
+                </button>
             </div>
         </div>
         {% endfor %}
@@ -1113,7 +1130,77 @@ SEARCH_NH_TEMPLATE = '''
         <h3>No se encontraron resultados para "{{ search_term }}"</h3>
     </div>
     {% endif %}
+
+    <script>
+        async function downloadImage(code, imageUrl) {
+            if (!imageUrl) return;
+            
+            const imgElement = document.getElementById(`img-${code}`);
+            const galleryElement = document.getElementById(`gallery-${code}`);
+            const btnElement = event.target;
+            
+            btnElement.disabled = true;
+            btnElement.textContent = 'Descargando...';
+            galleryElement.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/proxy-image?url=' + encodeURIComponent(imageUrl));
+                const blob = await response.blob();
+                
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const base64 = reader.result;
+                    imgElement.src = base64;
+                    
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = base64;
+                    downloadLink.download = `nhentai-${code}.jpg`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                    
+                    btnElement.textContent = '¡Descargada!';
+                    galleryElement.classList.remove('loading');
+                    
+                    setTimeout(() => {
+                        btnElement.disabled = false;
+                        btnElement.textContent = 'Descargar Imagen';
+                    }, 2000);
+                };
+                reader.readAsDataURL(blob);
+                
+            } catch (error) {
+                console.error('Error descargando imagen:', error);
+                btnElement.textContent = 'Error';
+                galleryElement.classList.remove('loading');
+                
+                setTimeout(() => {
+                    btnElement.disabled = false;
+                    btnElement.textContent = 'Descargar Imagen';
+                }, 2000);
+            }
+        }
+
+        async function downloadAllImages() {
+            const downloadButtons = document.querySelectorAll('.download-btn');
+            for (let i = 0; i < downloadButtons.length; i++) {
+                const btn = downloadButtons[i];
+                const galleryElement = btn.closest('.gallery-item');
+                const code = galleryElement.id.replace('gallery-', '');
+                const imgElement = document.getElementById(`img-${code}`);
+                const originalSrc = imgElement.dataset.originalSrc || imgElement.src;
+                
+                if (originalSrc && !originalSrc.includes('via.placeholder.com')) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    btn.click();
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        }
+    </script>
 </body>
 </html>
 '''
+
+
 
