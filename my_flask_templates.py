@@ -991,3 +991,119 @@ GALLERY_TEMPLATE = """
 </body>
 </html>
 """
+SEARCH_NH_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Búsqueda nHentai</title>
+    <style>
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .gallery-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .gallery-item img {
+            max-width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .gallery-name {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .gallery-code {
+            color: #666;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .search-form {
+            padding: 20px;
+            background: #f5f5f5;
+            margin-bottom: 20px;
+        }
+        .search-form input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-form button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination {
+            text-align: center;
+            padding: 20px;
+        }
+        .pagination a {
+            margin: 0 10px;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-form">
+        <form method="GET" action="/api/snh/">
+            <input type="text" name="q" value="{{ search_term }}" placeholder="Término de búsqueda" required>
+            <input type="number" name="p" value="{{ current_page }}" min="1" placeholder="Página">
+            <button type="submit">Buscar</button>
+        </form>
+    </div>
+
+    {% if results %}
+    <div class="gallery-grid">
+        {% for result in results %}
+        <div class="gallery-item">
+            {% if result.image_links %}
+            <img src="{{ result.image_links[0] }}" alt="{{ result.name }}" 
+                 onerror="this.src='https://via.placeholder.com/200x300?text=Imagen+no+disponible'">
+            {% else %}
+            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen">
+            {% endif %}
+            <div class="gallery-code">Código: {{ result.code }}</div>
+            <div class="gallery-name">{{ result.name }}</div>
+            <div style="margin-top: 10px;">
+                <a href="/crear_cbz?codigo={{ result.code }}&tipo=nh">Descargar CBZ</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="pagination">
+        {% if current_page > 1 %}
+        <a href="/api/snh/{{ search_term }}?p={{ current_page - 1 }}">Página Anterior</a>
+        {% endif %}
+        <span>Página {{ current_page }}</span>
+        {% if results|length == 25 %}
+        <a href="/api/snh/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px;">
+        <h3>No se encontraron resultados para "{{ search_term }}"</h3>
+    </div>
+    {% endif %}
+</body>
+</html>
+'''
+
