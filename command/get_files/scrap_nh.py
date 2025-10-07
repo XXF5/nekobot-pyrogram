@@ -1,6 +1,7 @@
 import argparse
 import time
 import os
+import math
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -24,7 +25,6 @@ def setup_driver():
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-
     chrome_options.binary_location = CHROME_BINARY_PATH
     chromedriver_path = CHROMEDRIVER_PATH
 
@@ -40,7 +40,7 @@ def setup_driver():
 def scrape_nhentai_with_selenium(search_term, page=1):
     driver = setup_driver()
     if not driver:
-        return []
+        return {"results": [], "total_pages": 1}
     
     try:
         url = f"https://nhentai.net/search/?q={search_term}&page={page}"
@@ -59,15 +59,30 @@ def scrape_nhentai_with_selenium(search_term, page=1):
             )
         except:
             print("No se encontraron galleries o timeout esperando")
-            return []
+            return {"results": [], "total_pages": 1}
         
         html_content = driver.page_source
         soup = BeautifulSoup(html_content, 'html.parser')
+        
+        total_results_text = ""
+        h1_element = soup.find('h1')
+        if h1_element:
+            total_results_text = h1_element.get_text(strip=True)
+        
+        total_results = 0
+        if "results" in total_results_text:
+            try:
+                total_results = int(total_results_text.split()[0])
+            except:
+                total_results = 0
+        
+        total_pages = math.ceil(total_results / 25) if total_results > 0 else 1
+        
         gallery_divs = soup.find_all('div', class_='gallery')
         
         if not gallery_divs:
             print("No se encontraron galleries")
-            return []
+            return {"results": [], "total_pages": total_pages}
         
         print(f"Encontrados {len(gallery_divs)} galleries")
         results = []
@@ -87,7 +102,7 @@ def scrape_nhentai_with_selenium(search_term, page=1):
                 
                 for img in img_tags:
                     src = img.get('src', '') or img.get('data-src', '')
-                    if src:
+                    if src and not src.startswith('data:image/gif'):
                         if src.startswith('//'):
                             src = 'https:' + src
                         elif src.startswith('/'):
@@ -110,11 +125,16 @@ def scrape_nhentai_with_selenium(search_term, page=1):
                 print(f"Error procesando gallery: {e}")
                 continue
         
-        return results
+        return {
+            "results": results,
+            "total_pages": total_pages,
+            "total_results": total_results,
+            "current_page": page
+        }
         
     except Exception as e:
         print(f"Error durante el scraping: {e}")
-        return []
+        return {"results": [], "total_pages": 1}
     
     finally:
         driver.quit()
@@ -132,10 +152,13 @@ def main():
     print(f"Pagina: {args.page}")
     print("-" * 50)
     
-    results = scrape_nhentai_with_selenium(args.search, args.page)
+    data = scrape_nhentai_with_selenium(args.search, args.page)
+    results = data["results"]
+    total_pages = data["total_pages"]
     
     if results:
         print(f"Resultados obtenidos: {len(results)}")
+        print(f"Total de paginas: {total_pages}")
         print("=" * 80)
         
         for i, result in enumerate(results, 1):
@@ -150,4 +173,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-                                 
