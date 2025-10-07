@@ -663,7 +663,7 @@ def search_nhentai(search_term=None):
                                 search_term=search_term, 
                                 current_page=page,
                                 total_pages=total_pages)
-
+    
 @explorer.route("/api/proxy-image")
 #@login_required
 def proxy_image():
