@@ -12,7 +12,10 @@ def sanitize(name):
     return re.sub(r'[\\/*?:"<>|]', '', name)
 
 def create_nhentai_cbz(code):
-    title, images = scrape_nhentai(code)
+    result = scrape_nhentai(code)
+    title = result["title"]
+    images = result["links"]
+    
     if not images:
         raise Exception(f"No se encontraron imágenes para el código nhentai {code}")
     
