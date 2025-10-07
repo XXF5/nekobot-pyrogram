@@ -211,7 +211,7 @@ from command.get_files.h3_links import obtener_titulo_y_imagenes as obtener_info
 def obtenerporcli(codigo, tipo, cover):
     try:
         if tipo == "hito":
-            return {"texto": "Procesando Hitomi.la", "imagenes": []}
+            return {"texto": "Procesando Hitomi.la", "imagenes": [], "tags": {}}
         elif tipo == "nh":
             result = scrape_nhentai(codigo)
             title = result["title"]
