@@ -112,12 +112,22 @@ def scrape_nhentai_with_selenium(search_term, page=1):
                 image_links = []
                 
                 if img_tag:
-                    src = img_tag.get('src') or img_tag.get('data-src')
-                    if src and not src.startswith('data:image/gif'):
-                        if src.startswith('//'):
-                            src = 'https:' + src
-                        elif src.startswith('/'):
-                            src = 'https://nhentai.net' + src
+                    src = img_tag.get('src', '')
+                    data_src = img_tag.get('data-src', '')
+                    
+                    possible_sources = [src, data_src]
+                    
+                    for img_source in possible_sources:
+                        if img_source and not img_source.startswith('data:image/gif'):
+                            if img_source.startswith('//'):
+                                img_source = 'https:' + img_source
+                            elif img_source.startswith('/'):
+                                img_source = 'https://nhentai.net' + img_source
+                            
+                            if img_source.startswith('https://') and not img_source.startswith('https://t.nhentai.net/galleries/'):
+                                image_links.append(img_source)
+                    
+                    if not image_links and src and src.startswith('https://t.nhentai.net/galleries/'):
                         image_links.append(src)
                 
                 caption_div = gallery.find('div', class_='caption')
@@ -170,6 +180,7 @@ def main():
             print(f"Resultado {i}:")
             print(f"   Codigo: {result['code']}")
             print(f"   Nombre: {result['name']}")
+            print(f"   Imagenes: {result['image_links']}")
     else:
         print("No se obtuvieron resultados")
 
