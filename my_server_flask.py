@@ -640,7 +640,8 @@ def search_nhentai(search_term=None):
         return render_template_string(SEARCH_NH_TEMPLATE, 
                                     results=[], 
                                     search_term="", 
-                                    current_page=1)
+                                    current_page=1,
+                                    total_pages=1)
     
     page = request.args.get("p", "1")
     try:
@@ -648,12 +649,15 @@ def search_nhentai(search_term=None):
     except:
         page = 1
     
-    results = scrape_nhentai_with_selenium(search_term, page)
+    data = scrape_nhentai_with_selenium(search_term, page)
+    results = data.get("results", [])
+    total_pages = data.get("total_pages", 1)
     
     return render_template_string(SEARCH_NH_TEMPLATE, 
                                 results=results, 
                                 search_term=search_term, 
-                                current_page=page)
+                                current_page=page,
+                                total_pages=total_pages)
     
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
