@@ -991,6 +991,7 @@ GALLERY_TEMPLATE = """
 </body>
 </html>
 """
+
 SEARCH_NH_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -999,9 +1000,11 @@ SEARCH_NH_TEMPLATE = '''
     <style>
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
             padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         .gallery-item {
             border: 1px solid #ddd;
@@ -1020,18 +1023,21 @@ SEARCH_NH_TEMPLATE = '''
         .gallery-name {
             margin-top: 10px;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             word-break: break-word;
+            height: 40px;
+            overflow: hidden;
         }
         .gallery-code {
             color: #666;
-            font-size: 12px;
+            font-size: 11px;
             margin: 5px 0;
         }
         .search-form {
             padding: 20px;
             background: #f5f5f5;
             margin-bottom: 20px;
+            text-align: center;
         }
         .search-form input {
             padding: 8px;
@@ -1059,6 +1065,10 @@ SEARCH_NH_TEMPLATE = '''
             text-decoration: none;
             border-radius: 4px;
         }
+        .pagination span {
+            margin: 0 15px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -1083,7 +1093,7 @@ SEARCH_NH_TEMPLATE = '''
             <div class="gallery-code">Código: {{ result.code }}</div>
             <div class="gallery-name">{{ result.name }}</div>
             <div style="margin-top: 10px;">
-                <a href="/crear_cbz?codigo={{ result.code }}&tipo=nh">Descargar CBZ</a>
+                <a href="/api/dnh/{{ result.code }}">Descargar CBZ</a>
             </div>
         </div>
         {% endfor %}
@@ -1093,8 +1103,8 @@ SEARCH_NH_TEMPLATE = '''
         {% if current_page > 1 %}
         <a href="/api/snh/{{ search_term }}?p={{ current_page - 1 }}">Página Anterior</a>
         {% endif %}
-        <span>Página {{ current_page }}</span>
-        {% if results|length == 25 %}
+        <span>Página {{ current_page }} de {{ total_pages }}</span>
+        {% if current_page < total_pages %}
         <a href="/api/snh/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente</a>
         {% endif %}
     </div>
