@@ -47,7 +47,9 @@ async def send_nhentai_results(message, client, arg_text):
 
         query = ' '.join(parts).strip()
 
-        galleries = scrape_nhentai_with_selenium(search_term=query, page=page)
+        result_data = scrape_nhentai_with_selenium(search_term=query, page=page)
+        galleries = result_data.get('results', [])
+        
         if not galleries:
             await message.reply("No se encontraron resultados.")
             return
@@ -99,7 +101,7 @@ async def send_nhentai_results(message, client, arg_text):
 
     except Exception as e:
         await message.reply(f"Error general: {e}")
-
+        
 BASE_DIR = "vault_files/doujins"
 os.makedirs(BASE_DIR, exist_ok=True)
 
