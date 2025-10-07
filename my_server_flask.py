@@ -626,7 +626,34 @@ def api_download_nhentai(code):
         return serve_and_clean(cbz_path)
     except Exception as e:
         return jsonify({"error": f"Error al descargar desde nhentai: {str(e)}"}), 500
-        
+
+
+@explorer.route("/api/snh/", methods=["GET"])
+@explorer.route("/api/snh/<path:search_term>", methods=["GET"])
+#@login_required
+def search_nhentai(search_term=None):
+    if request.method == "GET" and not search_term:
+        search_term = request.args.get("q", "").strip()
+    
+    if not search_term:
+        return render_template_string(SEARCH_NH_TEMPLATE, 
+                                    results=[], 
+                                    search_term="", 
+                                    current_page=1)
+    
+    page = request.args.get("p", "1")
+    try:
+        page = int(page)
+    except:
+        page = 1
+    
+    results = scrape_nhentai_with_selenium(search_term, page)
+    
+    return render_template_string(SEARCH_NH_TEMPLATE, 
+                                results=results, 
+                                search_term=search_term, 
+                                current_page=page)
+    
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
 def rename_item():
