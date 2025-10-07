@@ -143,8 +143,11 @@ async def crear_cbz_desde_fuente(codigo: str, tipo: str) -> str:
         return final_path
 
     if tipo == "nh":
-        title, imagenes = scrape_nhentai(codigo)
-        datos = {"texto": title, "imagenes": imagenes}
+        result = scrape_nhentai(codigo)
+        title = result["title"]
+        imagenes = result["links"]
+        tags = result["tags"]
+        datos = {"texto": title, "imagenes": imagenes, "tags": tags}
         referer = "https://nhentai.net/"
     else:
         datos = obtener_info_y_links_h3(codigo, cover=False)
@@ -210,16 +213,20 @@ def obtenerporcli(codigo, tipo, cover):
         if tipo == "hito":
             return {"texto": "Procesando Hitomi.la", "imagenes": []}
         elif tipo == "nh":
-            title, imagenes = scrape_nhentai(codigo)
-            datos = {"texto": title, "imagenes": imagenes}
+            result = scrape_nhentai(codigo)
+            title = result["title"]
+            imagenes = result["links"]
+            tags = result["tags"]
+            datos = {"texto": title, "imagenes": imagenes, "tags": tags}
         else:
             datos = obtener_info_y_links_h3(codigo, cover=cover)
         texto = datos.get("texto", "").strip()
         imagenes = datos.get("imagenes", [])
-        return {"texto": texto, "imagenes": imagenes}
+        tags = datos.get("tags", {})
+        return {"texto": texto, "imagenes": imagenes, "tags": tags}
     except Exception as e:
         print(f"❌ Error ejecutando función de extracción para {codigo}:", e)
-        return {"texto": "", "imagenes": []}
+        return {"texto": "", "imagenes": [], "tags": {}}
 
 def limpiarnombre(nombre: str) -> str:
     nombre = nombre.replace('\n', ' ').strip()
@@ -253,6 +260,7 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
 
         datos = obtenerporcli(codigo, tipo, cover=(operacion == "cover"))
         texto_original = datos.get("texto", "").strip()
+        tags = datos.get("tags", {})
         texto_titulo = f"{codigo} {texto_original}"
         nombrelimpio = limpiarnombre(texto_original)
         nombrebase = f"{codigo} {nombrelimpio}" if nombrelimpio else f"{tipo} {codigo}"
@@ -276,10 +284,20 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
             async with aiohttp.ClientSession() as session:
                 await descargarimagen_async(session, imagenes[0], previewpath)
 
+            caption_lines = [f"{texto_titulo} Número de páginas: {len(imagenes)}"]
+            
+            if tags:
+                caption_lines.append("\n🏷️ **Tags:**")
+                for category, tag_list in tags.items():
+                    if tag_list:
+                        caption_lines.append(f"• **{category}:** {', '.join(tag_list)}")
+
+            caption = "\n".join(caption_lines)
+
             cover_message = await safe_call(client.send_photo,
                 chat_id=message.chat.id,
                 photo=previewpath,
-                caption=f"{texto_titulo} Número de páginas: {len(imagenes)}",
+                caption=caption,
                 protect_content=proteger,
                 reply_to_message_id=message.id
             )
