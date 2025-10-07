@@ -1224,4 +1224,4 @@ SEARCH_NH_TEMPLATE = '''
     </script>
 </body>
 </html>
-
+'''
