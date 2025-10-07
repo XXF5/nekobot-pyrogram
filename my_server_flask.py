@@ -17,6 +17,8 @@ import shutil
 import base64
 from cryptography.fernet import Fernet
 import hashlib
+import requests
+from io import BytesIO
 from command.hapi.h3 import create_3hentai_cbz, serve_and_clean
 from command.get_files.scrap_nh import scrape_nhentai_with_selenium
 def natural_sort_key(s):
@@ -628,7 +630,6 @@ def api_download_nhentai(code):
     except Exception as e:
         return jsonify({"error": f"Error al descargar desde nhentai: {str(e)}"}), 500
 
-
 @explorer.route("/api/snh/", methods=["GET"])
 @explorer.route("/api/snh/<path:search_term>", methods=["GET"])
 #@login_required
@@ -649,15 +650,41 @@ def search_nhentai(search_term=None):
     except:
         page = 1
     
-    data = scrape_nhentai_with_selenium(search_term, page)
-    results = data.get("results", [])
-    total_pages = data.get("total_pages", 1)
+    try:
+        data = scrape_nhentai_with_selenium(search_term, page)
+        results = data.get("results", [])
+        total_pages = data.get("total_pages", 1)
+    except Exception as e:
+        results = []
+        total_pages = 1
     
     return render_template_string(SEARCH_NH_TEMPLATE, 
                                 results=results, 
                                 search_term=search_term, 
                                 current_page=page,
                                 total_pages=total_pages)
+
+@explorer.route("/api/proxy-image")
+#@login_required
+def proxy_image():
+    import requests
+    from io import BytesIO
+    
+    image_url = request.args.get('url')
+    if not image_url:
+        abort(400)
+    
+    try:
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+        
+        return send_file(
+            BytesIO(response.content),
+            mimetype=response.headers.get('content-type', 'image/jpeg'),
+            as_attachment=False
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
