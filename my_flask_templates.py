@@ -1227,6 +1227,248 @@ SEARCH_NH_TEMPLATE = '''
 </html>
 '''
 
+SEARCH_3H_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Búsqueda 3Hentai</title>
+    <style>
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .gallery-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .gallery-item img {
+            max-width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .gallery-name {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 12px;
+            word-break: break-word;
+            height: 60px;
+            overflow: hidden;
+        }
+        .gallery-code {
+            color: #666;
+            font-size: 11px;
+            margin: 5px 0;
+        }
+        .search-form {
+            padding: 20px;
+            background: #f5f5f5;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .search-form input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-form button {
+            padding: 8px 16px;
+            background: #e846c9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .pagination {
+            text-align: center;
+            padding: 20px;
+        }
+        .pagination a {
+            margin: 0 10px;
+            padding: 8px 16px;
+            background: #e846c9;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .pagination span {
+            margin: 0 15px;
+            font-weight: bold;
+        }
+        .convert-btn {
+            background: #ffc107;
+            color: black;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+            font-size: 11px;
+        }
+        .loading {
+            opacity: 0.5;
+        }
+        .convert-all-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 14px;
+        }
+        .total-results {
+            text-align: center;
+            color: #666;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-form">
+        <form method="GET" action="/api/s3h/">
+            <input type="text" name="q" value="{{ search_term }}" placeholder="Término de búsqueda" required>
+            <input type="number" name="p" value="{{ current_page }}" min="1" placeholder="Página">
+            <button type="submit">Buscar en 3Hentai</button>
+        </form>
+        <button class="convert-all-btn" onclick="convertAllImages()">Convertir Todas las Imágenes a Base64</button>
+    </div>
+
+    {% if results %}
+    <div class="total-results">
+        <strong>{{ results|length }}</strong> resultados en esta página
+    </div>
+    <div class="gallery-grid">
+        {% for result in results %}
+        <div class="gallery-item" id="gallery-{{ result.code }}">
+            {% if result.image_links and result.image_links[0] %}
+            <img src="{{ result.image_links[0] }}" alt="{{ result.name }}" 
+                 id="img-{{ result.code }}"
+                 data-original-src="{{ result.image_links[0] }}"
+                 onerror="this.src='https://via.placeholder.com/200x300?text=Imagen+no+disponible'">
+            {% else %}
+            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen" id="img-{{ result.code }}" data-original-src="">
+            {% endif %}
+            <div class="gallery-code">ID: {{ result.code }}</div>
+            <div class="gallery-name">{{ result.name }}</div>
+            <div style="margin-top: 10px;">
+                <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
+                    Convertir a Base64
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="pagination">
+        {% if current_page > 1 %}
+        <a href="/api/s3h/{{ search_term }}?p={{ current_page - 1 }}">Página Anterior</a>
+        {% endif %}
+        <span>Página {{ current_page }} de {{ total_pages }}</span>
+        {% if current_page < total_pages %}
+        <a href="/api/s3h/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px;">
+        <h3>No se encontraron resultados para "{{ search_term }}"</h3>
+    </div>
+    {% endif %}
+
+    <script>
+        async function convertToBase64(code) {
+            const imgElement = document.getElementById(`img-${code}`);
+            const galleryElement = document.getElementById(`gallery-${code}`);
+            const btnElement = event.target;
+            const originalSrc = imgElement.dataset.originalSrc;
+            
+            if (!originalSrc || originalSrc.includes('base64') || originalSrc.includes('via.placeholder.com')) {
+                return;
+            }
+            
+            btnElement.disabled = true;
+            btnElement.textContent = 'Convirtiendo...';
+            galleryElement.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/proxy-image?url=' + encodeURIComponent(originalSrc));
+                const blob = await response.blob();
+                
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const base64 = reader.result;
+                    imgElement.src = base64;
+                    btnElement.textContent = '¡Convertida!';
+                    galleryElement.classList.remove('loading');
+                    
+                    setTimeout(() => {
+                        btnElement.disabled = false;
+                        btnElement.textContent = 'Convertir a Base64';
+                    }, 2000);
+                };
+                reader.readAsDataURL(blob);
+                
+            } catch (error) {
+                console.error('Error convirtiendo imagen:', error);
+                btnElement.textContent = 'Error';
+                galleryElement.classList.remove('loading');
+                
+                setTimeout(() => {
+                    btnElement.disabled = false;
+                    btnElement.textContent = 'Convertir a Base64';
+                }, 2000);
+            }
+        }
+
+        async function convertAllImages() {
+            const convertButtons = document.querySelectorAll('.convert-btn');
+            const convertAllBtn = document.querySelector('.convert-all-btn');
+            
+            convertAllBtn.disabled = true;
+            convertAllBtn.textContent = 'Convirtiendo todas...';
+            
+            for (let i = 0; i < convertButtons.length; i++) {
+                const btn = convertButtons[i];
+                const galleryElement = btn.closest('.gallery-item');
+                const code = galleryElement.id.replace('gallery-', '');
+                const imgElement = document.getElementById(`img-${code}`);
+                const originalSrc = imgElement.dataset.originalSrc;
+                
+                if (originalSrc && !originalSrc.includes('base64') && !originalSrc.includes('via.placeholder.com')) {
+                    btn.click();
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            
+            convertAllBtn.disabled = false;
+            convertAllBtn.textContent = 'Convertir Todas las Imágenes a Base64';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const images = document.querySelectorAll('img[data-original-src]');
+            images.forEach(img => {
+                img.addEventListener('error', function() {
+                    if (this.src && !this.src.includes('via.placeholder.com')) {
+                        this.src = 'https://via.placeholder.com/200x300?text=Error+cargando+imagen';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+'''
+
 VIEW_NH_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
