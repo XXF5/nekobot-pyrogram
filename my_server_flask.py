@@ -663,7 +663,102 @@ def search_nhentai(search_term=None):
                                 search_term=search_term, 
                                 current_page=page,
                                 total_pages=total_pages)
+
+@explorer.route("/api/s3h/", methods=["GET"])
+@explorer.route("/api/s3h/<path:search_term>", methods=["GET"])
+def search_3hentai(search_term=None):
+    if request.method == "GET" and not search_term:
+        search_term = request.args.get("q", "").strip()
     
+    if not search_term:
+        return render_template_string(SEARCH_3H_TEMPLATE, 
+                                    results=[], 
+                                    search_term="", 
+                                    current_page=1,
+                                    total_pages=1)
+    
+    page = request.args.get("p", "1")
+    try:
+        page = int(page)
+    except:
+        page = 1
+    
+    def scrape_3hentai_search(search_term, page=1):
+        encoded_search = requests.utils.quote(search_term)
+        url = f"https://es.3hentai.net/search?q={encoded_search}&page={page}"
+
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            resultados = {}
+
+            total_resultados_texto = soup.find('div', class_='search-result-nb-result')
+            if total_resultados_texto:
+                total_resultados = int(total_resultados_texto.text.strip().replace(' resultados', '').replace(' ', '').replace('\xa0', ''))
+            else:
+                total_resultados = 0
+
+            total_paginas = math.ceil(total_resultados / 25)
+
+            doujin_cols = soup.find_all('div', class_='doujin-col')
+            results_list = []
+
+            for i, col in enumerate(doujin_cols[:25], 1):
+                doujin = col.find('div', class_='doujin')
+                if doujin:
+                    cover = doujin.find('a', class_='cover')
+                    if cover:
+                        title_div = cover.find('div', class_='title')
+                        if title_div:
+                            titulo = title_div.text.strip()
+                        else:
+                            titulo = "Título no disponible"
+
+                        img = cover.find('img')
+                        if img and 'data-src' in img.attrs:
+                            imagen_url = img['data-src'].replace('thumb.jpg', '1.jpg')
+                        elif img and 'src' in img.attrs:
+                            imagen_url = img['src'].replace('thumb.jpg', '1.jpg')
+                        else:
+                            imagen_url = ""
+
+                        results_list.append({
+                            "name": titulo,
+                            "image_links": [imagen_url] if imagen_url else [],
+                            "code": f"3h_{i}_{page}"
+                        })
+
+            return {
+                "results": results_list,
+                "total_pages": total_paginas,
+                "total_results": total_resultados
+            }
+
+        except requests.exceptions.RequestException as e:
+            return {"results": [], "total_pages": 1, "total_results": 0}
+        except Exception as e:
+            return {"results": [], "total_pages": 1, "total_results": 0}
+
+    try:
+        data = scrape_3hentai_search(search_term, page)
+        results = data.get("results", [])
+        total_pages = data.get("total_pages", 1)
+    except Exception as e:
+        results = []
+        total_pages = 1
+    
+    return render_template_string(SEARCH_3H_TEMPLATE, 
+                                results=results, 
+                                search_term=search_term, 
+                                current_page=page,
+                                total_pages=total_pages)
+
 @explorer.route("/api/proxy-image")
 #@login_required
 def proxy_image():
