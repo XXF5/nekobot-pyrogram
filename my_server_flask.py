@@ -6,7 +6,7 @@ from flask import Flask, request, send_from_directory, render_template_string, r
 from threading import Thread, Lock
 from command.torrets_tools import download_from_magnet_or_torrent, get_download_progress, cleanup_old_downloads
 from command.htools import crear_cbz_desde_fuente
-from my_flask_templates import LOGIN_TEMPLATE, MAIN_TEMPLATE, UTILS_TEMPLATE, DOWNLOADS_TEMPLATE, GALLERY_TEMPLATE, SEARCH_NH_TEMPLATE, VIEW_NH_TEMPLATE
+from my_flask_templates import LOGIN_TEMPLATE, MAIN_TEMPLATE, UTILS_TEMPLATE, DOWNLOADS_TEMPLATE, GALLERY_TEMPLATE, SEARCH_NH_TEMPLATE, VIEW_NH_TEMPLATE, VIEW_3H_TEMPLATE
 import uuid
 from datetime import datetime
 import re
@@ -708,7 +708,30 @@ def view_nhentai(code):
     except Exception as e:
         return f"<h3>Error al cargar la galería: {str(e)}</h3>", 500
 
-    
+@explorer.route("/api/v3h/<code>")
+def view_3hentai(code):
+    try:
+        from command.get_filed.h3_links import obtener_titulo_y_imagenes
+        
+        result = obtener_titulo_y_imagenes(code, cover=False)
+        
+        if not result.get("texto") or not result.get("imagenes"):
+            return "<h3>No se pudo obtener la información de la galería 3Hentai</h3>", 404
+        
+        import re
+        clean_title = re.sub(r'[<>:"/\\|?*]', '', result["texto"])[:100]
+        
+        return render_template_string(VIEW_3H_TEMPLATE, 
+                                    code=code,
+                                    title=result["texto"],
+                                    clean_title=clean_title,
+                                    tags=result.get("tags", {}),
+                                    image_links=result.get("imagenes", []),
+                                    cover_image=result.get("imagenes", [""])[0] if result.get("imagenes") else "",
+                                    total_pages=result.get("total_paginas", 0))
+    except Exception as e:
+        return f"<h3>Error al cargar la galería 3Hentai: {str(e)}</h3>", 500
+
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
 def rename_item():
