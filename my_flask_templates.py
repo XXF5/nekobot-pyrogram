@@ -1,68 +1,8 @@
 LOGIN_TEMPLATE = """
 <!doctype html>
 <html><head><title>Login</title><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-    body { 
-        font-family: Arial; 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2em; 
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .login-container {
-        background: white;
-        padding: 2em;
-        border-radius: 15px;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-        width: 100%;
-        max-width: 400px;
-    }
-    h2 {
-        text-align: center;
-        color: #333;
-        margin-bottom: 1.5em;
-        font-size: 1.8em;
-    }
-    input {
-        width: 100%;
-        padding: 12px;
-        margin-bottom: 1em;
-        border: 2px solid #ddd;
-        border-radius: 8px;
-        font-size: 1em;
-        transition: border-color 0.3s;
-        box-sizing: border-box;
-    }
-    input:focus {
-        border-color: #667eea;
-        outline: none;
-    }
-    input[type="submit"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-weight: bold;
-        padding: 12px;
-        transition: transform 0.2s;
-    }
-    input[type="submit"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-    .error-message {
-        background: #ffebee;
-        color: #c62828;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 1em;
-        text-align: center;
-        border: 1px solid #ffcdd2;
-        display: none;
-    }
-</style></head>
+<link rel="stylesheet" href="styles.css">
+</head>
 <body>
     <div class="login-container">
         <h2>🔐 Iniciar sesión</h2>
@@ -79,7 +19,6 @@ LOGIN_TEMPLATE = """
     </div>
 
     <script>
-        // Mostrar mensaje de error si hay parámetro de error en la URL
         if (window.location.search.includes('error=1')) {
             document.getElementById('errorMessage').style.display = 'block';
         }
@@ -87,110 +26,13 @@ LOGIN_TEMPLATE = """
 </body></html>
 """
 
-
 UTILS_TEMPLATE = """
 <!doctype html>
 <html>
 <head>
     <title>Utilidades</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { 
-            font-family: Arial; 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
-            background-color: #f8f9fa;
-        }
-        .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            padding: 1em; 
-            text-align: center; 
-            position: relative;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header-title { 
-            font-size: 1.2em; 
-            margin-bottom: 10px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 10px;
-        }
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            color: white;
-            text-decoration: none;
-            font-size: 0.9em;
-            transition: background 0.3s;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        .content { 
-            padding: 2em; 
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .section {
-            background: white;
-            padding: 1.5em;
-            border-radius: 10px;
-            margin-bottom: 2em;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h2 {
-            color: #333;
-            margin-top: 0;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 0.5em;
-        }
-        form { 
-            margin-bottom: 1em; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 0.8em; 
-        }
-        input[type="text"], select { 
-            padding: 0.8em; 
-            font-size: 1em; 
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            transition: border-color 0.3s;
-        }
-        input[type="text"]:focus, select:focus {
-            border-color: #667eea;
-            outline: none;
-        }
-        button { 
-            padding: 0.8em; 
-            font-size: 1em; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            border: none; 
-            border-radius: 6px; 
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: translateY(-2px);
-        }
-        .info-text {
-            background: #e3f2fd;
-            padding: 10px;
-            border-radius: 6px;
-            border-left: 4px solid #2196f3;
-            margin-top: 10px;
-            font-size: 0.9em;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="header">
@@ -241,165 +83,7 @@ DOWNLOADS_TEMPLATE = """
     <title>Descargas Activas</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .container { 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 15px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-            margin-top: 20px;
-            margin-bottom: 20px;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1em;
-            text-align: center;
-            border-radius: 10px 10px 0 0;
-            margin: -20px -20px 20px -20px;
-        }
-        h1 { 
-            color: white; 
-            text-align: center; 
-            margin: 0;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-        .nav { 
-            margin-bottom: 20px; 
-            text-align: center;
-            padding: 10px;
-        }
-        .nav a { 
-            margin: 0 10px; 
-            text-decoration: none; 
-            color: #667eea;
-            font-weight: bold;
-            padding: 8px 16px;
-            border-radius: 20px;
-            background: rgba(102, 126, 234, 0.1);
-            transition: background 0.3s;
-        }
-        .nav a:hover {
-            background: rgba(102, 126, 234, 0.2);
-        }
-        .download-card { 
-            border: 1px solid #e0e0e0; 
-            padding: 20px; 
-            margin: 15px 0; 
-            border-radius: 10px; 
-            background: #fafafa;
-            transition: transform 0.2s;
-        }
-        .download-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .progress-bar { 
-            background: #e0e0e0; 
-            height: 20px; 
-            border-radius: 10px; 
-            overflow: hidden; 
-            margin: 15px 0; 
-        }
-        .progress-fill { 
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            height: 100%; 
-            transition: width 0.3s; 
-        }
-        .stats { 
-            display: flex; 
-            justify-content: space-between; 
-            flex-wrap: wrap; 
-            gap: 10px;
-        }
-        .stat-item { 
-            margin: 5px 0;
-            padding: 8px;
-            background: white;
-            border-radius: 6px;
-            border-left: 3px solid #667eea;
-            flex: 1;
-            min-width: 150px;
-            text-align: center;
-        }
-        .completed { 
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            border-color: #28a745;
-        }
-        .error { 
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-            border-color: #dc3545;
-        }
-        .processing { 
-            background: linear-gradient(135deg, #cce7ff 0%, #b3d9ff 100%);
-            border-color: #007bff;
-        }
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        .refresh-btn { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            border: none; 
-            padding: 10px 20px; 
-            border-radius: 6px; 
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .refresh-btn:hover {
-            transform: translateY(-2px);
-        }
-        .new-download-form {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border: 2px dashed #667eea;
-        }
-        .new-download-form input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 1em;
-            box-sizing: border-box;
-        }
-        .new-download-form button {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        }
-        .auto-refresh { 
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #e9ecef;
-            border-radius: 6px;
-        }
-        .doujin-progress {
-            font-size: 1.1em;
-            font-weight: bold;
-            margin: 10px 0;
-            color: #495057;
-        }
-        .current-item {
-            font-style: italic;
-            color: #6c757d;
-            margin: 5px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
@@ -429,7 +113,6 @@ DOWNLOADS_TEMPLATE = """
             </div>
         </div>
         
-        <!-- Sección de descargas de Doujins -->
         {% if doujin_downloads %}
             <h2>📚 Descargas de Doujins</h2>
             {% for id, download in doujin_downloads.items() %}
@@ -497,7 +180,6 @@ DOWNLOADS_TEMPLATE = """
             {% endfor %}
         {% endif %}
         
-        <!-- Sección de descargas de Torrents -->
         {% if downloads %}
             <h2>📦 Descargas Torrent</h2>
             {% for id, download in downloads.items() %}
@@ -544,7 +226,6 @@ DOWNLOADS_TEMPLATE = """
             </div>
         {% endif %}
 
-        <!-- Formulario para nueva descarga al final -->
         <div class="new-download-form">
             <h3>➕ Nueva descarga Torrent/Magnet</h3>
             <form action="/magnet" method="post">
@@ -561,15 +242,13 @@ DOWNLOADS_TEMPLATE = """
             if (document.getElementById('autoRefresh').checked) {
                 autoRefreshInterval = setInterval(() => {
                     location.reload();
-                }, 5000); // 5 segundos
+                }, 5000);
             } else {
                 clearInterval(autoRefreshInterval);
             }
         }
 
-        // No auto-activación al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
-            // El checkbox está desactivado por defecto
         });
     </script>
 </body>
@@ -582,172 +261,7 @@ MAIN_TEMPLATE = """
 <head>
     <title>Explorador de Archivos</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial; margin: 0; padding: 0; box-sizing: border-box; background-color: #f8f9fa; }
-        .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            padding: 1em; 
-            text-align: center; 
-            position: relative;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header-title { 
-            font-size: 1.2em; 
-            margin-bottom: 10px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-        .header a { 
-            color: white; 
-            text-decoration: none;
-            font-weight: bold;
-            transition: opacity 0.3s;
-        }
-        .header a:hover { opacity: 0.8; }
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 10px;
-        }
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            color: white;
-            text-decoration: none;
-            font-size: 0.9em;
-            transition: background 0.3s;
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        .content { 
-            padding: 2em; 
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .section {
-            background: white;
-            padding: 1.5em;
-            border-radius: 10px;
-            margin-bottom: 2em;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h2 {
-            color: #333;
-            margin-top: 0;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 0.5em;
-        }
-        form { margin-bottom: 1em; display: flex; flex-direction: column; gap: 0.5em; }
-        input[type="file"], input[type="text"], select { 
-            padding: 0.8em; 
-            font-size: 1em; 
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            transition: border-color 0.3s;
-        }
-        input[type="file"]:focus, input[type="text"]:focus, select:focus {
-            border-color: #667eea;
-            outline: none;
-        }
-        button { 
-            padding: 0.8em; 
-            font-size: 1em; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            border: none; 
-            border-radius: 6px; 
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: translateY(-2px);
-        }
-        ul { list-style-type: none; padding: 0; }
-        li { 
-            margin: 0.5em 0; 
-            word-break: break-word;
-            padding: 0.8em;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #667eea;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .file-info {
-            flex: 1;
-            min-width: 200px;
-        }
-        .file-actions {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        a { text-decoration: none; color: #667eea; font-weight: 500; }
-        a:hover { text-decoration: underline; }
-        .delete-btn, .rename-btn, .extract-btn, .gallery-btn { 
-            color: white; 
-            border: none; 
-            padding: 0.5em 1em; 
-            border-radius: 4px; 
-            cursor: pointer;
-            font-size: 0.9em;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .delete-btn { background-color: #dc3545; }
-        .rename-btn { background-color: #ffc107; color: black; }
-        .extract-btn { background-color: #28a745; }
-        .gallery-btn { background-color: #17a2b8; }
-        .compress-toggle { 
-            margin-top: 1em;
-            background: #28a745;
-        }
-        .select-all {
-            margin-bottom: 10px;
-            background: #6c757d;
-        }
-        
-        .file-list {
-            max-height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 1em;
-        }
-    </style>
-    <script>
-        function toggleCompress() {
-            const section = document.getElementById("compress-section");
-            section.style.display = section.style.display === "none" ? "block" : "none";
-        }
-        
-        function toggleRename(id) {
-            const input = document.getElementById("rename-" + id);
-            const btn = document.getElementById("rename-" + id + "-btn");
-            input.style.display = input.style.display === "none" ? "inline" : "none";
-            btn.style.display = btn.style.display === "none" ? "inline" : "none";
-        }
-        
-        function selectAllFiles(selectAll) {
-            const checkboxes = document.querySelectorAll('input[name="selected"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAll;
-            });
-        }
-        
-        // Función para enviar formularios de forma segura
-        function submitForm(form, event) {
-            event.preventDefault();
-            if (confirm('¿Estás seguro de que quieres realizar esta acción?')) {
-                form.submit();
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="header">
@@ -838,112 +352,45 @@ MAIN_TEMPLATE = """
             </ul>
         </div>
     </div>
+
+    <script>
+        function toggleCompress() {
+            const section = document.getElementById("compress-section");
+            section.style.display = section.style.display === "none" ? "block" : "none";
+        }
+        
+        function toggleRename(id) {
+            const input = document.getElementById("rename-" + id);
+            const btn = document.getElementById("rename-" + id + "-btn");
+            input.style.display = input.style.display === "none" ? "inline" : "none";
+            btn.style.display = btn.style.display === "none" ? "inline" : "none";
+        }
+        
+        function selectAllFiles(selectAll) {
+            const checkboxes = document.querySelectorAll('input[name="selected"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll;
+            });
+        }
+        
+        function submitForm(form, event) {
+            event.preventDefault();
+            if (confirm('¿Estás seguro de que quieres realizar esta acción?')) {
+                form.submit();
+            }
+        }
+    </script>
 </body>
 </html>
 """
-   
+
 GALLERY_TEMPLATE = """
 <!doctype html>
 <html>
 <head>
     <title>Galería de Imágenes</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { 
-            font-family: Arial; 
-            margin: 0; 
-            padding: 0; 
-            background-color: #f0f0f0;
-        }
-        .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
-            padding: 1em; 
-            text-align: center; 
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header a { 
-            color: white; 
-            text-decoration: none;
-            font-weight: bold;
-            margin: 0 10px;
-            padding: 5px 10px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.2);
-        }
-        .header a:hover { 
-            background: rgba(255,255,255,0.3);
-        }
-        .gallery-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
-            padding: 20px;
-        }
-        .gallery-item {
-            position: relative;
-            overflow: hidden;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-            background: white;
-        }
-        .gallery-item:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-        }
-        .gallery-item img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            display: block;
-        }
-        .gallery-item .caption {
-            padding: 10px;
-            text-align: center;
-            font-size: 0.9em;
-            color: #333;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .back-button {
-            display: inline-block;
-            margin: 10px 20px;
-            padding: 8px 15px;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-        }
-        .fullscreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            cursor: pointer;
-        }
-        .fullscreen img {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
-        }
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 10px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="header">
@@ -983,7 +430,6 @@ GALLERY_TEMPLATE = """
             document.body.style.overflow = 'auto';
         }
         
-        // Cerrar con ESC
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeFullscreen();
         });
@@ -991,107 +437,13 @@ GALLERY_TEMPLATE = """
 </body>
 </html>
 """
+
 SEARCH_NH_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
     <title>Búsqueda nHentai</title>
-    <style>
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .gallery-item {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .gallery-item img {
-            max-width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-        .gallery-name {
-            margin-top: 10px;
-            font-weight: bold;
-            font-size: 12px;
-            word-break: break-word;
-            height: 40px;
-            overflow: hidden;
-        }
-        .gallery-code {
-            color: #666;
-            font-size: 11px;
-            margin: 5px 0;
-        }
-        .search-form {
-            padding: 20px;
-            background: #f5f5f5;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .search-form input {
-            padding: 8px;
-            margin: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .search-form button {
-            padding: 8px 16px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .pagination {
-            text-align: center;
-            padding: 20px;
-        }
-        .pagination a {
-            margin: 0 10px;
-            padding: 8px 16px;
-            background: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-        }
-        .pagination span {
-            margin: 0 15px;
-            font-weight: bold;
-        }
-        .convert-btn {
-            background: #ffc107;
-            color: black;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 2px;
-            font-size: 11px;
-        }
-        .loading {
-            opacity: 0.5;
-        }
-        .convert-all-btn {
-            background: #17a2b8;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 10px;
-            font-size: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="search-form">
@@ -1232,295 +584,22 @@ VIEW_NH_TEMPLATE = '''
 <head>
     <title>{{ title }} - nHentai</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .gallery-header {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        @media (min-width: 768px) {
-            .gallery-header {
-                flex-direction: row;
-                align-items: flex-start;
-            }
-        }
-        
-        .cover-container {
-            flex-shrink: 0;
-            width: 100%;
-            max-width: 300px;
-            margin: 0 auto;
-        }
-        
-        @media (min-width: 768px) {
-            .cover-container {
-                width: 300px;
-                margin: 0;
-            }
-        }
-        
-        .cover-image {
-            width: 100%;
-            height: 400px;
-            object-fit: cover;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        
-        .info-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .gallery-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            line-height: 1.3;
-        }
-        
-        .gallery-code {
-            color: #666;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-        
-        .tags-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .tag-category {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: flex-start;
-        }
-        
-        .tag-category strong {
-            min-width: 80px;
-            color: #333;
-            font-size: 14px;
-        }
-        
-        .tag-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            flex: 1;
-        }
-        
-        .tag {
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #495057;
-        }
-        
-        .download-section {
-            margin-top: 10px;
-        }
-        
-        .download-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .download-btn:hover {
-            background: #218838;
-        }
-        
-        .download-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-        
-        .progress-info {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .gallery-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .gallery-title-section {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        
-        @media (min-width: 768px) {
-            .gallery-grid {
-                grid-template-columns: repeat(5, 1fr);
-                gap: 15px;
-            }
-        }
-        
-        .gallery-item {
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        
-        .gallery-item:hover {
-            transform: scale(1.05);
-        }
-        
-        .gallery-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal-content {
-            position: relative;
-            max-width: 90%;
-            max-height: 90%;
-        }
-        
-        .modal-image {
-            max-width: 100%;
-            max-height: 90vh;
-            object-fit: contain;
-        }
-        
-        .modal-nav {
-            position: absolute;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .nav-area {
-            width: 30%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        
-        .nav-area:hover {
-            opacity: 1;
-        }
-        
-        .nav-area.prev {
-            justify-content: flex-start;
-        }
-        
-        .nav-area.next {
-            justify-content: flex-end;
-        }
-        
-        .nav-arrow {
-            color: white;
-            font-size: 24px;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 15px;
-            border-radius: 50%;
-        }
-        
-        .close-area {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 30px;
-            cursor: pointer;
-            background: rgba(0,0,0,0.5);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .image-counter {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-        
-        .loading {
-            opacity: 0.7;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="search-section">
+        <form method="GET" action="/api/snh/" class="search-form">
+            <input type="text" name="q" value="{{ search_term or '' }}" placeholder="Buscar en nHentai..." class="search-input" required>
+            <button type="submit" class="search-btn">Buscar</button>
+        </form>
+    </div>
+
     <div class="gallery-header">
         <div class="cover-container">
             <img src="{{ cover_image }}" 
                  alt="{{ title }}" 
                  class="cover-image"
-                 onclick="openModal(0)"
+                 onclick="openCascadeModal(0)"
                  onerror="this.src='https://via.placeholder.com/300x400?text=Cover+no+disponible'">
         </div>
         
@@ -1554,34 +633,27 @@ VIEW_NH_TEMPLATE = '''
     
     <div class="gallery-section">
         <h2 class="gallery-title-section">Galería de Imágenes ({{ image_links|length }})</h2>
-        <div class="gallery-grid">
+        <div class="cascade-gallery">
             {% for image_url in image_links %}
-            <div class="gallery-item" onclick="openModal({{ loop.index0 }})">
-                <img src="{{ image_url }}" 
-                     alt="Imagen {{ loop.index }}" 
-                     class="gallery-image"
-                     onerror="this.src='https://via.placeholder.com/200x300?text=Error+cargando'"
-                     loading="lazy">
-            </div>
+            <img src="{{ image_url }}" 
+                 alt="Imagen {{ loop.index }}" 
+                 class="cascade-image"
+                 onclick="openCascadeModal({{ loop.index0 }})"
+                 onerror="this.src='https://via.placeholder.com/800x1200?text=Error+cargando'"
+                 loading="lazy">
             {% endfor %}
         </div>
     </div>
     
-    <div class="modal" id="imageModal">
-        <div class="modal-content">
-            <img class="modal-image" id="modalImage" src="">
-            <div class="image-counter" id="imageCounter"></div>
-            
-            <div class="modal-nav">
-                <div class="nav-area prev" onclick="navigateImage(-1)">
-                    <span class="nav-arrow">❮</span>
-                </div>
-                <div class="nav-area next" onclick="navigateImage(1)">
-                    <span class="nav-arrow">❯</span>
-                </div>
-            </div>
-            
-            <div class="close-area" onclick="closeModal()">×</div>
+    <div class="cascade-modal" id="cascadeModal">
+        <div class="image-counter" id="imageCounter"></div>
+        <div class="cascade-modal-content" id="cascadeModalContent">
+            {% for image_url in image_links %}
+            <img src="{{ image_url }}" 
+                 alt="Imagen {{ loop.index }}" 
+                 class="cascade-modal-image"
+                 onerror="this.src='https://via.placeholder.com/800x1200?text=Error+cargando'">
+            {% endfor %}
         </div>
     </div>
 
@@ -1592,20 +664,21 @@ VIEW_NH_TEMPLATE = '''
         const cleanTitle = "{{ clean_title }}";
         const code = "{{ code }}";
         
-        function openModal(index) {
+        function openCascadeModal(index) {
             currentImageIndex = index;
-            const modal = document.getElementById('imageModal');
-            const modalImage = document.getElementById('modalImage');
+            const modal = document.getElementById('cascadeModal');
             const imageCounter = document.getElementById('imageCounter');
             
-            modalImage.src = imageLinks[index];
             imageCounter.textContent = `${index + 1} / ${totalImages}`;
-            modal.style.display = 'flex';
+            modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
+            
+            const targetImage = document.querySelectorAll('.cascade-modal-image')[index];
+            targetImage.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
-        function closeModal() {
-            const modal = document.getElementById('imageModal');
+        function closeCascadeModal() {
+            const modal = document.getElementById('cascadeModal');
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
         }
@@ -1619,43 +692,34 @@ VIEW_NH_TEMPLATE = '''
                 newIndex = 0;
             }
             
-            openModal(newIndex);
+            openCascadeModal(newIndex);
         }
         
-        document.getElementById('imageModal').addEventListener('click', function(e) {
-            const modalContent = document.querySelector('.modal-content');
-            const modalImage = document.getElementById('modalImage');
-            
-            if (e.target === this) {
-                closeModal();
-                return;
-            }
-            
-            if (e.target === modalImage) {
-                const rect = modalImage.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const width = rect.width;
-                
-                if (clickX < width * 0.3) {
-                    navigateImage(-1);
-                } else if (clickX > width * 0.7) {
-                    navigateImage(1);
-                } else {
-                    closeModal();
-                }
+        document.getElementById('cascadeModal').addEventListener('click', function(e) {
+            if (e.target === this || e.target.classList.contains('cascade-modal-image')) {
+                closeCascadeModal();
             }
         });
         
         document.addEventListener('keydown', function(e) {
-            const modal = document.getElementById('imageModal');
-            if (modal.style.display === 'flex') {
-                if (e.key === 'ArrowLeft') {
+            const modal = document.getElementById('cascadeModal');
+            if (modal.style.display === 'block') {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
                     navigateImage(-1);
-                } else if (e.key === 'ArrowRight') {
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
                     navigateImage(1);
                 } else if (e.key === 'Escape') {
-                    closeModal();
+                    closeCascadeModal();
                 }
+            }
+        });
+        
+        document.getElementById('cascadeModalContent').addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY > 0) {
+                navigateImage(1);
+            } else {
+                navigateImage(-1);
             }
         });
         
@@ -1767,249 +831,7 @@ VIEW_3H_TEMPLATE = '''
 <head>
     <title>{{ title }} - 3Hentai</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .gallery-header {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        @media (min-width: 768px) {
-            .gallery-header {
-                flex-direction: row;
-                align-items: flex-start;
-            }
-        }
-        .cover-container {
-            flex-shrink: 0;
-            width: 100%;
-            max-width: 300px;
-            margin: 0 auto;
-        }
-        @media (min-width: 768px) {
-            .cover-container {
-                width: 300px;
-                margin: 0;
-            }
-        }
-        .cover-image {
-            width: 100%;
-            height: 400px;
-            object-fit: cover;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        .info-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .gallery-title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            line-height: 1.3;
-        }
-        .gallery-code {
-            color: #666;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-        .tags-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .tag-category {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: flex-start;
-        }
-        .tag-category strong {
-            min-width: 80px;
-            color: #333;
-            font-size: 14px;
-        }
-        .tag-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            flex: 1;
-        }
-        .tag {
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #495057;
-        }
-        .download-section {
-            margin-top: 10px;
-        }
-        .download-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        .download-btn:hover {
-            background: #218838;
-        }
-        .download-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-        .progress-info {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #666;
-        }
-        .gallery-section {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .gallery-title-section {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-        @media (min-width: 768px) {
-            .gallery-grid {
-                grid-template-columns: repeat(5, 1fr);
-                gap: 15px;
-            }
-        }
-        .gallery-item {
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .gallery-item:hover {
-            transform: scale(1.05);
-        }
-        .gallery-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            position: relative;
-            max-width: 90%;
-            max-height: 90%;
-        }
-        .modal-image {
-            max-width: 100%;
-            max-height: 90vh;
-            object-fit: contain;
-        }
-        .modal-nav {
-            position: absolute;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-        }
-        .nav-area {
-            width: 30%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .nav-area:hover {
-            opacity: 1;
-        }
-        .nav-area.prev {
-            justify-content: flex-start;
-        }
-        .nav-area.next {
-            justify-content: flex-end;
-        }
-        .nav-arrow {
-            color: white;
-            font-size: 24px;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 15px;
-            border-radius: 50%;
-        }
-        .close-area {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 30px;
-            cursor: pointer;
-            background: rgba(0,0,0,0.5);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .image-counter {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-        .loading {
-            opacity: 0.7;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="gallery-header">
@@ -2017,7 +839,7 @@ VIEW_3H_TEMPLATE = '''
             <img src="{{ cover_image }}" 
                  alt="{{ title }}" 
                  class="cover-image"
-                 onclick="openModal(0)"
+                 onclick="openCascadeModal(0)"
                  onerror="this.src='https://via.placeholder.com/300x400?text=Cover+no+disponible'">
         </div>
         <div class="info-container">
@@ -2048,31 +870,26 @@ VIEW_3H_TEMPLATE = '''
     </div>
     <div class="gallery-section">
         <h2 class="gallery-title-section">Galería de Imágenes ({{ image_links|length }})</h2>
-        <div class="gallery-grid">
+        <div class="cascade-gallery">
             {% for image_url in image_links %}
-            <div class="gallery-item" onclick="openModal({{ loop.index0 }})">
-                <img src="{{ image_url }}" 
-                     alt="Imagen {{ loop.index }}" 
-                     class="gallery-image"
-                     onerror="this.src='https://via.placeholder.com/200x300?text=Error+cargando'"
-                     loading="lazy">
-            </div>
+            <img src="{{ image_url }}" 
+                 alt="Imagen {{ loop.index }}" 
+                 class="cascade-image"
+                 onclick="openCascadeModal({{ loop.index0 }})"
+                 onerror="this.src='https://via.placeholder.com/800x1200?text=Error+cargando'"
+                 loading="lazy">
             {% endfor %}
         </div>
     </div>
-    <div class="modal" id="imageModal">
-        <div class="modal-content">
-            <img class="modal-image" id="modalImage" src="">
-            <div class="image-counter" id="imageCounter"></div>
-            <div class="modal-nav">
-                <div class="nav-area prev" onclick="navigateImage(-1)">
-                    <span class="nav-arrow">❮</span>
-                </div>
-                <div class="nav-area next" onclick="navigateImage(1)">
-                    <span class="nav-arrow">❯</span>
-                </div>
-            </div>
-            <div class="close-area" onclick="closeModal()">×</div>
+    <div class="cascade-modal" id="cascadeModal">
+        <div class="image-counter" id="imageCounter"></div>
+        <div class="cascade-modal-content" id="cascadeModalContent">
+            {% for image_url in image_links %}
+            <img src="{{ image_url }}" 
+                 alt="Imagen {{ loop.index }}" 
+                 class="cascade-modal-image"
+                 onerror="this.src='https://via.placeholder.com/800x1200?text=Error+cargando'">
+            {% endfor %}
         </div>
     </div>
     <script>
@@ -2082,20 +899,21 @@ VIEW_3H_TEMPLATE = '''
         const cleanTitle = "{{ clean_title }}";
         const code = "{{ code }}";
         
-        function openModal(index) {
+        function openCascadeModal(index) {
             currentImageIndex = index;
-            const modal = document.getElementById('imageModal');
-            const modalImage = document.getElementById('modalImage');
+            const modal = document.getElementById('cascadeModal');
             const imageCounter = document.getElementById('imageCounter');
             
-            modalImage.src = imageLinks[index];
             imageCounter.textContent = `${index + 1} / ${totalImages}`;
-            modal.style.display = 'flex';
+            modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
+            
+            const targetImage = document.querySelectorAll('.cascade-modal-image')[index];
+            targetImage.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
-        function closeModal() {
-            const modal = document.getElementById('imageModal');
+        function closeCascadeModal() {
+            const modal = document.getElementById('cascadeModal');
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
         }
@@ -2107,43 +925,34 @@ VIEW_3H_TEMPLATE = '''
             } else if (newIndex >= totalImages) {
                 newIndex = 0;
             }
-            openModal(newIndex);
+            openCascadeModal(newIndex);
         }
         
-        document.getElementById('imageModal').addEventListener('click', function(e) {
-            const modalContent = document.querySelector('.modal-content');
-            const modalImage = document.getElementById('modalImage');
-            
-            if (e.target === this) {
-                closeModal();
-                return;
-            }
-            
-            if (e.target === modalImage) {
-                const rect = modalImage.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const width = rect.width;
-                
-                if (clickX < width * 0.3) {
-                    navigateImage(-1);
-                } else if (clickX > width * 0.7) {
-                    navigateImage(1);
-                } else {
-                    closeModal();
-                }
+        document.getElementById('cascadeModal').addEventListener('click', function(e) {
+            if (e.target === this || e.target.classList.contains('cascade-modal-image')) {
+                closeCascadeModal();
             }
         });
         
         document.addEventListener('keydown', function(e) {
-            const modal = document.getElementById('imageModal');
-            if (modal.style.display === 'flex') {
-                if (e.key === 'ArrowLeft') {
+            const modal = document.getElementById('cascadeModal');
+            if (modal.style.display === 'block') {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
                     navigateImage(-1);
-                } else if (e.key === 'ArrowRight') {
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
                     navigateImage(1);
                 } else if (e.key === 'Escape') {
-                    closeModal();
+                    closeCascadeModal();
                 }
+            }
+        });
+        
+        document.getElementById('cascadeModalContent').addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY > 0) {
+                navigateImage(1);
+            } else {
+                navigateImage(-1);
             }
         });
         
