@@ -2,7 +2,6 @@ import argparse
 import time
 import os
 import math
-import json
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -13,34 +12,6 @@ from bs4 import BeautifulSoup
 
 CHROME_BINARY_PATH = "selenium/chrome-linux64/chrome"
 CHROMEDRIVER_PATH = "selenium/chromedriver-linux64/chromedriver"
-COOKIES_FILE = "nhentai_cookies.json"
-
-def save_cookies(driver):
-    try:
-        cookies = driver.get_cookies()
-        with open(COOKIES_FILE, 'w') as f:
-            json.dump(cookies, f)
-        print("🍪 Cookies guardadas correctamente")
-    except Exception as e:
-        print(f"⚠️ No se pudieron guardar las cookies: {e}")
-
-def load_cookies(driver):
-    try:
-        if os.path.exists(COOKIES_FILE):
-            with open(COOKIES_FILE, 'r') as f:
-                cookies = json.load(f)
-            
-            driver.get("https://nhentai.net/")
-            for cookie in cookies:
-                try:
-                    driver.add_cookie(cookie)
-                except:
-                    continue
-            print("🍪 Cookies cargadas correctamente")
-            return True
-    except Exception as e:
-        print(f"⚠️ No se pudieron cargar las cookies: {e}")
-    return False
 
 def setup_driver():
     chrome_options = Options()
@@ -54,8 +25,6 @@ def setup_driver():
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-    chrome_options.add_argument('--disable-extensions')
-    chrome_options.add_argument('--disable-plugins')
     chrome_options.binary_location = CHROME_BINARY_PATH
 
     try:
@@ -67,38 +36,24 @@ def setup_driver():
         print(f"Error al configurar el driver: {e}")
         return None
 
-def bypass_cloudflare(driver, url):
-    max_attempts = 3
-    for attempt in range(max_attempts):
-        driver.get(url)
-        time.sleep(5 + attempt * 2)
-        
-        page_source = driver.page_source
-        if "Just a moment" in page_source or "Verifying" in page_source:
-            print(f"⚠️  Cloudflare detectado (intento {attempt + 1}/{max_attempts}), esperando...")
-            time.sleep(8)
-            continue
-        
-        if "gallery" in page_source.lower() or "search" in page_source.lower():
-            save_cookies(driver)
-            return True
-    
-    return False
-
 def scrape_nhentai_with_selenium(search_term, page=1):
     driver = setup_driver()
     if not driver:
         return {"results": [], "total_pages": 1}
     
     try:
-        cookies_loaded = load_cookies(driver)
-        
         url = f"https://nhentai.net/search/?q={search_term.replace(' ', '+')}&page={page}"
-        print(f"🌐 Accediendo a: {url}")
+        print(f"Accediendo a: {url}")
         
-        if not cookies_loaded or not bypass_cloudflare(driver, url):
-            print("❌ No se pudo superar Cloudflare")
-            return {"results": [], "total_pages": 1}
+        driver.get(url)
+        
+        max_wait = 30
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait:
+            if "Just a moment" not in driver.page_source and "Verifying" not in driver.page_source:
+                break
+            time.sleep(2)
         
         time.sleep(3)
         
