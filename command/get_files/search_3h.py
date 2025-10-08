@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import argparse
 import math
 import sys
+import re
 
 def scrape_3hentai_search(search_term, page=1):
     encoded_search = requests.utils.quote(search_term)
@@ -48,9 +49,14 @@ def scrape_3hentai_search(search_term, page=1):
                     else:
                         imagen_url = "Imagen no disponible"
 
+                    href = cover.get('href', '')
+                    codigo_match = re.search(r'/d/(\d+)', href)
+                    codigo = codigo_match.group(1) if codigo_match else "Código no disponible"
+
                     resultados[f"resultado_{i}"] = {
                         "titulo": titulo,
-                        "imagen": imagen_url
+                        "imagen": imagen_url,
+                        "codigo": codigo
                     }
 
         return {
