@@ -1,8 +1,6 @@
 import random
 import time
 import argparse
-import json
-import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -12,38 +10,9 @@ from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import re
 
-COOKIES_FILE = "nhentai_cookies.json"
-
-def save_cookies(driver):
-    try:
-        cookies = driver.get_cookies()
-        with open(COOKIES_FILE, 'w') as f:
-            json.dump(cookies, f)
-        print("🍪 Cookies guardadas correctamente")
-    except Exception as e:
-        print(f"⚠️ No se pudieron guardar las cookies: {e}")
-
-def load_cookies(driver):
-    try:
-        if os.path.exists(COOKIES_FILE):
-            with open(COOKIES_FILE, 'r') as f:
-                cookies = json.load(f)
-            
-            driver.get("https://nhentai.net/")
-            for cookie in cookies:
-                try:
-                    driver.add_cookie(cookie)
-                except:
-                    continue
-            print("🍪 Cookies cargadas correctamente")
-            return True
-    except Exception as e:
-        print(f"⚠️ No se pudieron cargar las cookies: {e}")
-    return False
-
-def setup_driver():
-    chrome_options = Options()
+def scrape_nhentai(gallery_number):
     
+    chrome_options = Options()
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
@@ -52,61 +21,40 @@ def setup_driver():
     
     chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36')
     chrome_options.add_argument('--accept-language=en-US,en;q=0.9')
-    
     chrome_options.add_argument('--sec-ch-ua="Chromium";v="118", "Google Chrome";v="118", "Not=A?Brand";v="99"')
     chrome_options.add_argument('--sec-ch-ua-mobile=?0')
     chrome_options.add_argument('--sec-ch-ua-platform="Windows"')
-    
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-    
-    chrome_options.add_argument('--disable-extensions')
-    chrome_options.add_argument('--disable-plugins')
-    chrome_options.add_argument('--disable-images')
-    chrome_options.add_argument('--disable-javascript')
     
     chrome_binary_path = "selenium/chrome-linux64/chrome"
     chromedriver_path = "selenium/chromedriver-linux64/chromedriver"
     chrome_options.binary_location = chrome_binary_path
 
-    service = Service(executable_path=chromedriver_path)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    
-    return driver
-
-def bypass_cloudflare(driver, url):
-    max_attempts = 3
-    for attempt in range(max_attempts):
-        driver.get(url)
-        time.sleep(5 + attempt * 2)
-        
-        page_source = driver.page_source
-        if "Just a moment" in page_source or "Verifying you are human" in page_source:
-            print(f"⚠️  Cloudflare detectado (intento {attempt + 1}/{max_attempts}), esperando...")
-            time.sleep(8)
-            continue
-        
-        if "gallery" in page_source.lower() or "cover" in page_source.lower():
-            save_cookies(driver)
-            return True
-    
-    return False
-
-def scrape_nhentai(gallery_number):
-    driver = setup_driver()
-    
     try:
-        cookies_loaded = load_cookies(driver)
+        service = Service(executable_path=chromedriver_path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         
         url = f"https://nhentai.net/g/{gallery_number}/"
         print(f"🌐 Accediendo a: {url}")
         
-        if not cookies_loaded or not bypass_cloudflare(driver, url):
-            print("❌ No se pudo superar Cloudflare")
-            return {"title": None, "links": [], "tags": {}}
+        driver.get(url)
+        
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            time.sleep(3 + attempt * 2)
+            
+            page_source = driver.page_source
+            if "Just a moment" in page_source or "Verifying you are human" in page_source:
+                print(f"⚠️  Cloudflare detectado (intento {attempt + 1}/{max_attempts}), esperando más...")
+                time.sleep(5)
+                continue
+            
+            if "gallery" in page_source.lower() or "cover" in page_source.lower():
+                break
         
         html_content = driver.page_source
         
@@ -115,6 +63,7 @@ def scrape_nhentai(gallery_number):
         
         soup = BeautifulSoup(html_content, 'html.parser')
         
+        # Extraer título
         title_element = soup.find('h1', class_='title')
         if title_element:
             title_parts = []
@@ -124,6 +73,7 @@ def scrape_nhentai(gallery_number):
         else:
             full_title = "Título no encontrado"
         
+        # Extraer tags
         tags_dict = {}
         tags_section = soup.find('section', id='tags')
         if tags_section:
@@ -137,6 +87,7 @@ def scrape_nhentai(gallery_number):
                 if tags:
                     tags_dict[field_name] = tags
         
+        # Extraer enlaces de imágenes
         gallery_id = None
         image_links = []
         pattern = re.compile(r'//t[1249]\.nhentai\.net/galleries/(\d+)/(\d+)t\.(webp|jpg|png)')
