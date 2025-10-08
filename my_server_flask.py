@@ -643,7 +643,7 @@ def search_nhentai(search_term=None):
                                     search_term="", 
                                     current_page=1,
                                     total_pages=1)
-    
+
     page = request.args.get("p", "1")
     try:
         page = int(page)
@@ -675,7 +675,8 @@ def search_3hentai(search_term=None):
                                     results=[], 
                                     search_term="", 
                                     current_page=1,
-                                    total_pages=1)
+                                    total_pages=1,
+                                    total_results=0)
     
     page = request.args.get("p", "1")
     try:
@@ -696,15 +697,13 @@ def search_3hentai(search_term=None):
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            resultados = {}
-
             total_resultados_texto = soup.find('div', class_='search-result-nb-result')
             if total_resultados_texto:
                 total_resultados = int(total_resultados_texto.text.strip().replace(' resultados', '').replace(' ', '').replace('\xa0', ''))
             else:
                 total_resultados = 0
 
-            total_paginas = math.ceil(total_resultados / 25)
+            total_paginas = math.ceil(total_resultados / 25) if total_resultados > 0 else 1
 
             doujin_cols = soup.find_all('div', class_='doujin-col')
             results_list = []
@@ -728,10 +727,14 @@ def search_3hentai(search_term=None):
                         else:
                             imagen_url = ""
 
+                        href = cover.get('href', '')
+                        codigo_match = re.search(r'/d/(\d+)', href)
+                        codigo = codigo_match.group(1) if codigo_match else f"3h_{i}_{page}"
+
                         results_list.append({
                             "name": titulo,
                             "image_links": [imagen_url] if imagen_url else [],
-                            "code": f"3h_{i}_{page}"
+                            "code": codigo
                         })
 
             return {
@@ -749,15 +752,18 @@ def search_3hentai(search_term=None):
         data = scrape_3hentai_search(search_term, page)
         results = data.get("results", [])
         total_pages = data.get("total_pages", 1)
+        total_results = data.get("total_results", 0)
     except Exception as e:
         results = []
         total_pages = 1
+        total_results = 0
     
     return render_template_string(SEARCH_3H_TEMPLATE, 
                                 results=results, 
                                 search_term=search_term, 
                                 current_page=page,
-                                total_pages=total_pages)
+                                total_pages=total_pages,
+                                total_results=total_results)
 
 @explorer.route("/api/proxy-image")
 #@login_required
