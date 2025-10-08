@@ -733,6 +733,60 @@ def view_3hentai(code):
     except Exception as e:
         return f"<h3>Error al cargar la galería 3Hentai: {str(e)}</h3>", 500
 
+@explorer.route("/api/create-cbz", methods=["POST"])
+#@login_required
+def api_create_cbz():
+    try:
+        if not request.files:
+            return jsonify({"error": "No se recibieron archivos"}), 400
+        
+        title = request.form.get("title", "doujin")
+        code = request.form.get("code", "")
+        
+        import re
+        clean_title = re.sub(r'[<>:"/\\|?*]', '', title)[:100]
+        
+        import tempfile
+        import zipfile
+        import os
+        
+        temp_dir = tempfile.mkdtemp()
+        cbz_filename = f"{clean_title}_{code}.cbz" if code else f"{clean_title}.cbz"
+        cbz_path = os.path.join(temp_dir, cbz_filename)
+        
+        with zipfile.ZipFile(cbz_path, 'w') as zipf:
+            for i, (filename, file_storage) in enumerate(request.files.items()):
+                if file_storage and file_storage.filename:
+                    _, ext = os.path.splitext(file_storage.filename)
+                    if not ext:
+                        ext = '.jpg'
+                    
+                    zip_filename = f"{str(i+1).zfill(3)}{ext}"
+                    
+                    file_data = file_storage.read()
+                    zipf.writestr(zip_filename, file_data)
+        
+        response = send_file(
+            cbz_path,
+            as_attachment=True,
+            download_name=cbz_filename,
+            mimetype='application/zip'
+        )
+        
+        @response.call_on_close
+        def cleanup():
+            try:
+                import shutil
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+            except:
+                pass
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({"error": f"Error al crear CBZ: {str(e)}"}), 500
+
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
 def rename_item():
