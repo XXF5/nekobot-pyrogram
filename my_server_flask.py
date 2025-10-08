@@ -793,7 +793,7 @@ def api_create_cbz():
             cbz_path,
             as_attachment=True,
             download_name=cbz_filename,
-            mimetype='application/zip'
+            mimetype='application/x-cbz'
         )
         
         @response.call_on_close
