@@ -734,7 +734,6 @@ def view_3hentai(code):
         return f"<h3>Error al cargar la galería 3Hentai: {str(e)}</h3>", 500
 
 @explorer.route("/api/create-cbz", methods=["POST"])
-#@login_required
 def api_create_cbz():
     try:
         if not request.files:
@@ -754,17 +753,41 @@ def api_create_cbz():
         cbz_filename = f"{clean_title}_{code}.cbz" if code else f"{clean_title}.cbz"
         cbz_path = os.path.join(temp_dir, cbz_filename)
         
+        mime_to_ext = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/webp': '.webp',
+            'image/gif': '.gif',
+            'image/bmp': '.bmp',
+            'image/tiff': '.tiff'
+        }
+        
         with zipfile.ZipFile(cbz_path, 'w') as zipf:
-            for i, (filename, file_storage) in enumerate(request.files.items()):
+            file_index = 0
+            
+            for key in sorted(request.files.keys()):
+                file_storage = request.files[key]
                 if file_storage and file_storage.filename:
-                    _, ext = os.path.splitext(file_storage.filename)
-                    if not ext:
-                        ext = '.jpg'
+                    mime_type = file_storage.mimetype
                     
-                    zip_filename = f"{str(i+1).zfill(3)}{ext}"
+                    if mime_type in mime_to_ext:
+                        ext = mime_to_ext[mime_type]
+                    else:
+                        original_filename = file_storage.filename.lower()
+                        if any(original_filename.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff']):
+                            _, ext = os.path.splitext(original_filename)
+                        else:
+                            ext = '.jpg'
+                    
+                    file_index += 1
+                    zip_filename = f"{str(file_index).zfill(3)}{ext}"
                     
                     file_data = file_storage.read()
                     zipf.writestr(zip_filename, file_data)
+        
+        if file_index == 0:
+            return jsonify({"error": "No se pudieron procesar los archivos"}), 400
         
         response = send_file(
             cbz_path,
@@ -786,7 +809,6 @@ def api_create_cbz():
         
     except Exception as e:
         return jsonify({"error": f"Error al crear CBZ: {str(e)}"}), 500
-
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
 def rename_item():
