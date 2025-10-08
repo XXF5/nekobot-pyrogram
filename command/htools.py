@@ -27,7 +27,7 @@ async def api_search_3hentai(search_term, page=1):
         for key, result in result_data.get('resultados', {}).items():
             galleries.append({
                 'name': result['titulo'],
-                'code': key.replace('resultado_', ''),
+                'code': result['codigo'],
                 'image_links': [result['imagen']]
             })
         
@@ -108,7 +108,7 @@ async def send_3hentai_results(message, client, arg_text):
 
     except Exception as e:
         await message.reply(f"Error general: {e}")
-
+        
 async def api_search_nhentai(search_term, page=1):
     try:
         galleries = scrape_nhentai_with_selenium(search_term=search_term, page=page)
