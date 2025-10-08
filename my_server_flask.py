@@ -690,6 +690,7 @@ def proxy_image():
 #@login_required
 def view_nhentai(code):
     try:
+        from command.get_files.nh_selenium import scrape_nhentai
         result = scrape_nhentai(code)
         
         if not result.get("title") or not result.get("links"):
