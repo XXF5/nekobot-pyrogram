@@ -711,7 +711,7 @@ def view_nhentai(code):
 @explorer.route("/api/v3h/<code>")
 def view_3hentai(code):
     try:
-        from command.get_filed.h3_links import obtener_titulo_y_imagenes
+        from command.get_files.h3_links import obtener_titulo_y_imagenes
         
         result = obtener_titulo_y_imagenes(code, cover=False)
         
