@@ -991,7 +991,6 @@ GALLERY_TEMPLATE = """
 </body>
 </html>
 """
-
 SEARCH_NH_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -1092,6 +1091,19 @@ SEARCH_NH_TEMPLATE = '''
             margin: 10px;
             font-size: 14px;
         }
+        .details-link {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 11px;
+            display: inline-block;
+            margin: 2px;
+        }
+        .details-link:hover {
+            background: #218838;
+        }
     </style>
 </head>
 <body>
@@ -1119,7 +1131,9 @@ SEARCH_NH_TEMPLATE = '''
             <div class="gallery-code">Código: {{ result.code }}</div>
             <div class="gallery-name">{{ result.name }}</div>
             <div style="margin-top: 10px;">
-                <a href="/api/dnh/{{ result.code }}">Descargar CBZ</a>
+                <a href="/api/vnh/{{ result.code }}" class="details-link" target="_blank">
+                    Ver Detalles
+                </a>
                 <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
                     Convertir a Base64
                 </button>
