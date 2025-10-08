@@ -1332,6 +1332,19 @@ SEARCH_3H_TEMPLATE = '''
             color: #666;
             margin-bottom: 10px;
         }
+        .download-link {
+            background: #28a745;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 11px;
+            display: inline-block;
+            margin: 2px;
+        }
+        .download-link:hover {
+            background: #218838;
+        }
     </style>
 </head>
 <body>
@@ -1346,7 +1359,7 @@ SEARCH_3H_TEMPLATE = '''
 
     {% if results %}
     <div class="total-results">
-        <strong>{{ results|length }}</strong> resultados en esta página
+        <strong>{{ total_results }}</strong> resultados totales - Página {{ current_page }} de {{ total_pages }}
     </div>
     <div class="gallery-grid">
         {% for result in results %}
@@ -1362,6 +1375,9 @@ SEARCH_3H_TEMPLATE = '''
             <div class="gallery-code">ID: {{ result.code }}</div>
             <div class="gallery-name">{{ result.name }}</div>
             <div style="margin-top: 10px;">
+                <a href="/api/v3h/{{ result.code }}" class="download-link" target="_blank">
+                    Ver Detalles
+                </a>
                 <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
                     Convertir a Base64
                 </button>
