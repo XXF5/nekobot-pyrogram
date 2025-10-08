@@ -1233,11 +1233,288 @@ VIEW_NH_TEMPLATE = '''
     <title>{{ title }} - nHentai</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* ... (mantener todos los estilos iguales) ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .gallery-header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .gallery-header {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+        
+        .cover-container {
+            flex-shrink: 0;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        
+        @media (min-width: 768px) {
+            .cover-container {
+                width: 300px;
+                margin: 0;
+            }
+        }
+        
+        .cover-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .info-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .gallery-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            line-height: 1.3;
+        }
+        
+        .gallery-code {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .tags-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .tag-category {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        
+        .tag-category strong {
+            min-width: 80px;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+        }
+        
+        .tag {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #495057;
+        }
+        
+        .download-section {
+            margin-top: 10px;
+        }
+        
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #218838;
+        }
+        
+        .download-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .progress-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .gallery-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .gallery-title-section {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        @media (min-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 15px;
+            }
+        }
+        
+        .gallery-item {
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+        
+        .gallery-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        
+        .modal-image {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        
+        .modal-nav {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .nav-area {
+            width: 30%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .nav-area:hover {
+            opacity: 1;
+        }
+        
+        .nav-area.prev {
+            justify-content: flex-start;
+        }
+        
+        .nav-area.next {
+            justify-content: flex-end;
+        }
+        
+        .nav-arrow {
+            color: white;
+            font-size: 24px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 50%;
+        }
+        
+        .close-area {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: rgba(0,0,0,0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .image-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        .loading {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
-    <!-- Header Section (igual) -->
     <div class="gallery-header">
         <div class="cover-container">
             <img src="{{ cover_image }}" 
@@ -1275,7 +1552,6 @@ VIEW_NH_TEMPLATE = '''
         </div>
     </div>
     
-    <!-- Gallery Section (igual) -->
     <div class="gallery-section">
         <h2 class="gallery-title-section">Galería de Imágenes ({{ image_links|length }})</h2>
         <div class="gallery-grid">
@@ -1291,9 +1567,22 @@ VIEW_NH_TEMPLATE = '''
         </div>
     </div>
     
-    <!-- Modal (igual) -->
     <div class="modal" id="imageModal">
-        <!-- ... (modal igual) ... -->
+        <div class="modal-content">
+            <img class="modal-image" id="modalImage" src="">
+            <div class="image-counter" id="imageCounter"></div>
+            
+            <div class="modal-nav">
+                <div class="nav-area prev" onclick="navigateImage(-1)">
+                    <span class="nav-arrow">❮</span>
+                </div>
+                <div class="nav-area next" onclick="navigateImage(1)">
+                    <span class="nav-arrow">❯</span>
+                </div>
+            </div>
+            
+            <div class="close-area" onclick="closeModal()">×</div>
+        </div>
     </div>
 
     <script>
@@ -1303,7 +1592,6 @@ VIEW_NH_TEMPLATE = '''
         const cleanTitle = "{{ clean_title }}";
         const code = "{{ code }}";
         
-        // Modal functions (igual)
         function openModal(index) {
             currentImageIndex = index;
             const modal = document.getElementById('imageModal');
@@ -1334,7 +1622,6 @@ VIEW_NH_TEMPLATE = '''
             openModal(newIndex);
         }
         
-        // Handle click on modal for navigation (igual)
         document.getElementById('imageModal').addEventListener('click', function(e) {
             const modalContent = document.querySelector('.modal-content');
             const modalImage = document.getElementById('modalImage');
@@ -1359,7 +1646,6 @@ VIEW_NH_TEMPLATE = '''
             }
         });
         
-        // Keyboard navigation (igual)
         document.addEventListener('keydown', function(e) {
             const modal = document.getElementById('imageModal');
             if (modal.style.display === 'flex') {
@@ -1373,7 +1659,6 @@ VIEW_NH_TEMPLATE = '''
             }
         });
         
-        // Nueva función downloadCBZ usando la API
         async function downloadCBZ() {
             const btn = document.querySelector('.download-btn');
             const progressInfo = document.getElementById('progressInfo');
@@ -1382,7 +1667,6 @@ VIEW_NH_TEMPLATE = '''
             btn.textContent = '⏳ Preparando...';
             
             try {
-                // Descargar imágenes y crear FormData
                 const formData = new FormData();
                 formData.append('title', cleanTitle);
                 formData.append('code', code);
@@ -1397,9 +1681,22 @@ VIEW_NH_TEMPLATE = '''
                         if (!response.ok) throw new Error('HTTP error ' + response.status);
                         
                         const blob = await response.blob();
-                        const filename = `image_${i + 1}.jpg`;
+                        const contentType = response.headers.get('content-type');
+                        let ext = '.jpg';
                         
-                        // Agregar imagen al FormData
+                        if (contentType) {
+                            if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+                                ext = '.jpg';
+                            } else if (contentType.includes('png')) {
+                                ext = '.png';
+                            } else if (contentType.includes('webp')) {
+                                ext = '.webp';
+                            } else if (contentType.includes('gif')) {
+                                ext = '.gif';
+                            }
+                        }
+                        
+                        const filename = `image_${i + 1}${ext}`;
                         formData.append(`file_${i}`, blob, filename);
                         downloadedCount++;
                         
@@ -1410,7 +1707,6 @@ VIEW_NH_TEMPLATE = '''
                     }
                 }
                 
-                // Enviar a la API para crear CBZ
                 progressInfo.textContent = 'Creando CBZ...';
                 
                 const response = await fetch('/api/create-cbz', {
@@ -1422,7 +1718,6 @@ VIEW_NH_TEMPLATE = '''
                     throw new Error('Error al crear CBZ');
                 }
                 
-                // Descargar el archivo
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1443,14 +1738,12 @@ VIEW_NH_TEMPLATE = '''
             } finally {
                 btn.disabled = false;
                 
-                // Limpiar mensaje después de 5 segundos
                 setTimeout(() => {
                     progressInfo.textContent = '';
                 }, 5000);
             }
         }
         
-        // Preload images for better modal experience
         function preloadImages() {
             imageLinks.forEach((url, index) => {
                 if (index < 10) {
@@ -1460,7 +1753,6 @@ VIEW_NH_TEMPLATE = '''
             });
         }
         
-        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             preloadImages();
         });
@@ -1468,6 +1760,7 @@ VIEW_NH_TEMPLATE = '''
 </body>
 </html>
 '''
+
 VIEW_3H_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -1475,7 +1768,247 @@ VIEW_3H_TEMPLATE = '''
     <title>{{ title }} - 3Hentai</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* ... (mantener todos los estilos iguales) ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .gallery-header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .gallery-header {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+        .cover-container {
+            flex-shrink: 0;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        @media (min-width: 768px) {
+            .cover-container {
+                width: 300px;
+                margin: 0;
+            }
+        }
+        .cover-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .info-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .gallery-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            line-height: 1.3;
+        }
+        .gallery-code {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .tags-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .tag-category {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .tag-category strong {
+            min-width: 80px;
+            color: #333;
+            font-size: 14px;
+        }
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+        }
+        .tag {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #495057;
+        }
+        .download-section {
+            margin-top: 10px;
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+        .download-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .progress-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .gallery-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .gallery-title-section {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        @media (min-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 15px;
+            }
+        }
+        .gallery-item {
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+        .gallery-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .modal-image {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        .modal-nav {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+        .nav-area {
+            width: 30%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .nav-area:hover {
+            opacity: 1;
+        }
+        .nav-area.prev {
+            justify-content: flex-start;
+        }
+        .nav-area.next {
+            justify-content: flex-end;
+        }
+        .nav-arrow {
+            color: white;
+            font-size: 24px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            border-radius: 50%;
+        }
+        .close-area {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: rgba(0,0,0,0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .loading {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -1528,7 +2061,19 @@ VIEW_3H_TEMPLATE = '''
         </div>
     </div>
     <div class="modal" id="imageModal">
-        <!-- ... (modal igual) ... -->
+        <div class="modal-content">
+            <img class="modal-image" id="modalImage" src="">
+            <div class="image-counter" id="imageCounter"></div>
+            <div class="modal-nav">
+                <div class="nav-area prev" onclick="navigateImage(-1)">
+                    <span class="nav-arrow">❮</span>
+                </div>
+                <div class="nav-area next" onclick="navigateImage(1)">
+                    <span class="nav-arrow">❯</span>
+                </div>
+            </div>
+            <div class="close-area" onclick="closeModal()">×</div>
+        </div>
     </div>
     <script>
         let currentImageIndex = 0;
@@ -1537,7 +2082,6 @@ VIEW_3H_TEMPLATE = '''
         const cleanTitle = "{{ clean_title }}";
         const code = "{{ code }}";
         
-        // Modal functions (igual)
         function openModal(index) {
             currentImageIndex = index;
             const modal = document.getElementById('imageModal');
@@ -1566,7 +2110,6 @@ VIEW_3H_TEMPLATE = '''
             openModal(newIndex);
         }
         
-        // Handle click on modal for navigation (igual)
         document.getElementById('imageModal').addEventListener('click', function(e) {
             const modalContent = document.querySelector('.modal-content');
             const modalImage = document.getElementById('modalImage');
@@ -1591,7 +2134,6 @@ VIEW_3H_TEMPLATE = '''
             }
         });
         
-        // Keyboard navigation (igual)
         document.addEventListener('keydown', function(e) {
             const modal = document.getElementById('imageModal');
             if (modal.style.display === 'flex') {
@@ -1605,7 +2147,6 @@ VIEW_3H_TEMPLATE = '''
             }
         });
         
-        // Nueva función downloadCBZ usando la API
         async function downloadCBZ() {
             const btn = document.querySelector('.download-btn');
             const progressInfo = document.getElementById('progressInfo');
@@ -1614,7 +2155,6 @@ VIEW_3H_TEMPLATE = '''
             btn.textContent = 'Preparando...';
             
             try {
-                // Descargar imágenes y crear FormData
                 const formData = new FormData();
                 formData.append('title', cleanTitle);
                 formData.append('code', code);
@@ -1629,9 +2169,22 @@ VIEW_3H_TEMPLATE = '''
                         if (!response.ok) throw new Error('HTTP error ' + response.status);
                         
                         const blob = await response.blob();
-                        const filename = `image_${i + 1}.jpg`;
+                        const contentType = response.headers.get('content-type');
+                        let ext = '.jpg';
                         
-                        // Agregar imagen al FormData
+                        if (contentType) {
+                            if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+                                ext = '.jpg';
+                            } else if (contentType.includes('png')) {
+                                ext = '.png';
+                            } else if (contentType.includes('webp')) {
+                                ext = '.webp';
+                            } else if (contentType.includes('gif')) {
+                                ext = '.gif';
+                            }
+                        }
+                        
+                        const filename = `image_${i + 1}${ext}`;
                         formData.append(`file_${i}`, blob, filename);
                         downloadedCount++;
                         
@@ -1642,7 +2195,6 @@ VIEW_3H_TEMPLATE = '''
                     }
                 }
                 
-                // Enviar a la API para crear CBZ
                 progressInfo.textContent = 'Creando CBZ...';
                 
                 const response = await fetch('/api/create-cbz', {
@@ -1654,7 +2206,6 @@ VIEW_3H_TEMPLATE = '''
                     throw new Error('Error al crear CBZ');
                 }
                 
-                // Descargar el archivo
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1696,4 +2247,3 @@ VIEW_3H_TEMPLATE = '''
 </body>
 </html>
 '''
-
