@@ -17,6 +17,97 @@ from pyrogram.errors import FloodWait
 from pyrogram.types import InputMediaPhoto
 from command.get_files.scrap_nh import scrape_nhentai_with_selenium
 
+from command.get_files.search_3h import scrape_3hentai_search
+
+async def api_search_3hentai(search_term, page=1):
+    try:
+        result_data = scrape_3hentai_search(search_term=search_term, page=page)
+        galleries = []
+        
+        for key, result in result_data.get('resultados', {}).items():
+            galleries.append({
+                'name': result['titulo'],
+                'code': key.replace('resultado_', ''),
+                'image_links': [result['imagen']]
+            })
+        
+        return {
+            'results': galleries,
+            'total_pages': result_data.get('total_paginas', 1),
+            'total_results': result_data.get('total_resultados', 0)
+        }
+    except Exception as e:
+        print(f"Error en búsqueda 3hentai API: {e}")
+        return {'results': [], 'total_pages': 1, 'total_results': 0}
+
+async def send_3hentai_results(message, client, arg_text):
+    try:
+        parts = arg_text.split()
+        page = 1
+        if '-p' in parts:
+            try:
+                p_index = parts.index('-p')
+                page = int(parts[p_index + 1])
+                parts = parts[:p_index]
+            except (ValueError, IndexError):
+                pass
+
+        query = ' '.join(parts).strip()
+
+        result_data = await api_search_3hentai(search_term=query, page=page)
+        galleries = result_data.get('results', [])
+        
+        if not galleries:
+            await message.reply("No se encontraron resultados.")
+            return
+
+        for result in galleries[:25]:
+            image_data = None
+
+            for link in result.get('image_links', []):
+                try:
+                    response = requests.get(link, timeout=10)
+                    if response.status_code == 200:
+                        image_data = response.content
+                        break
+                except Exception:
+                    continue
+
+            if not image_data:
+                await message.reply(f"No se pudo descargar imagen para: {result['name']}")
+                continue
+
+            try:
+                img = Image.open(BytesIO(image_data))
+                if img.format == 'WEBP':
+                    img = img.convert('RGB')
+                buffer = BytesIO()
+                img.save(buffer, format='PNG')
+                buffer.seek(0)
+            except Exception as e:
+                await message.reply(f"Error procesando imagen: {e}")
+                continue
+
+            caption = (
+                f"📚 *Título:* {result['name']}\n"
+                f"📥 Puedes descargar este doujin usando el comando:\n"
+                f"`/3h {result['code']}`"
+            )
+
+            try:
+                await client.send_photo(
+                    chat_id=message.chat.id,
+                    photo=buffer,
+                    caption=caption
+                )
+            except Exception as e:
+                await message.reply(f"Error enviando imagen: {e}")
+                continue
+
+            time.sleep(3)
+
+    except Exception as e:
+        await message.reply(f"Error general: {e}")
 
 async def api_search_nhentai(search_term, page=1):
     try:
