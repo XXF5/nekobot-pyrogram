@@ -996,113 +996,242 @@ SEARCH_NH_TEMPLATE = '''
 <html>
 <head>
     <title>Búsqueda nHentai</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .gallery-item {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .gallery-item img {
-            max-width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-        .gallery-name {
-            margin-top: 10px;
-            font-weight: bold;
-            font-size: 12px;
-            word-break: break-word;
-            height: 40px;
-            overflow: hidden;
-        }
-        .gallery-code {
-            color: #666;
-            font-size: 11px;
-            margin: 5px 0;
-        }
-        .search-form {
-            padding: 20px;
+        
+        body {
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .search-form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             text-align: center;
         }
+        
         .search-form input {
-            padding: 8px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
             margin: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            min-width: 200px;
         }
+        
         .search-form button {
-            padding: 8px 16px;
-            background: #007bff;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
         }
-        .pagination {
-            text-align: center;
-            padding: 20px;
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 20px 0;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-        .pagination a {
-            margin: 0 10px;
-            padding: 8px 16px;
-            background: #007bff;
+        
+        @media (min-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 20px;
+            }
+        }
+        
+        .gallery-item {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 140%; /* Proporción 1:1.4 para imágenes verticales */
+            overflow: hidden;
+        }
+        
+        .gallery-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+        
+        .gallery-info {
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .gallery-name {
+            font-weight: 600;
+            color: #333;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            flex: 1;
+            min-height: 60px;
+        }
+        
+        .gallery-code {
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .gallery-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .details-link {
+            background: #28a745;
             color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
             text-decoration: none;
-            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+            transition: background 0.3s;
         }
-        .pagination span {
-            margin: 0 15px;
-            font-weight: bold;
+        
+        .details-link:hover {
+            background: #218838;
+            text-decoration: none;
         }
+        
         .convert-btn {
             background: #ffc107;
             color: black;
             border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 8px 12px;
+            border-radius: 6px;
             cursor: pointer;
-            margin: 2px;
-            font-size: 11px;
+            font-size: 12px;
+            transition: background 0.3s;
         }
-        .loading {
-            opacity: 0.5;
+        
+        .convert-btn:hover {
+            background: #e0a800;
         }
+        
+        .convert-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .pagination a {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+        
+        .pagination a:hover {
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        .pagination span {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+        
         .convert-all-btn {
             background: #17a2b8;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 14px;
             margin: 10px;
+            transition: background 0.3s;
+        }
+        
+        .convert-all-btn:hover {
+            background: #138496;
+        }
+        
+        .convert-all-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .total-results {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
             font-size: 14px;
         }
-        .details-link {
-            background: #28a745;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 11px;
-            display: inline-block;
-            margin: 2px;
+        
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
         }
-        .details-link:hover {
-            background: #218838;
+        
+        .no-results h3 {
+            margin-bottom: 10px;
+            font-size: 20px;
         }
     </style>
 </head>
@@ -1117,26 +1246,40 @@ SEARCH_NH_TEMPLATE = '''
     </div>
 
     {% if results %}
+    <div class="total-results">
+        <strong>{{ total_results }}</strong> resultados encontrados - Página {{ current_page }} de {{ total_pages }}
+    </div>
+    
     <div class="gallery-grid">
         {% for result in results %}
         <div class="gallery-item" id="gallery-{{ result.code }}">
-            {% if result.image_links %}
-            <img src="{{ result.image_links[0] }}" alt="{{ result.name }}" 
-                 id="img-{{ result.code }}"
-                 data-original-src="{{ result.image_links[0] }}"
-                 onerror="this.src='https://via.placeholder.com/200x300?text=Imagen+no+disponible'">
-            {% else %}
-            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen" id="img-{{ result.code }}" data-original-src="">
-            {% endif %}
-            <div class="gallery-code">Código: {{ result.code }}</div>
-            <div class="gallery-name">{{ result.name }}</div>
-            <div style="margin-top: 10px;">
-                <a href="/api/vnh/{{ result.code }}" class="details-link" target="_blank">
-                    Ver Detalles
-                </a>
-                <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
-                    Convertir a Base64
-                </button>
+            <div class="image-container">
+                {% if result.image_links %}
+                <img src="{{ result.image_links[0] }}" 
+                     alt="{{ result.name }}" 
+                     id="img-{{ result.code }}"
+                     data-original-src="{{ result.image_links[0] }}"
+                     onerror="this.src='https://via.placeholder.com/300x420/667eea/ffffff?text=Imagen+no+disponible'">
+                {% else %}
+                <img src="https://via.placeholder.com/300x420/cccccc/ffffff?text=Sin+imagen" 
+                     alt="Sin imagen" 
+                     id="img-{{ result.code }}" 
+                     data-original-src="">
+                {% endif %}
+            </div>
+            
+            <div class="gallery-info">
+                <div class="gallery-code">Código: {{ result.code }}</div>
+                <div class="gallery-name">{{ result.name }}</div>
+                
+                <div class="gallery-actions">
+                    <a href="/api/vnh/{{ result.code }}" class="details-link" target="_blank">
+                        Ver Detalles
+                    </a>
+                    <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
+                        Convertir a Base64
+                    </button>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -1144,16 +1287,20 @@ SEARCH_NH_TEMPLATE = '''
     
     <div class="pagination">
         {% if current_page > 1 %}
-        <a href="/api/snh/{{ search_term }}?p={{ current_page - 1 }}">Página Anterior</a>
+        <a href="/api/snh/{{ search_term }}?p={{ current_page - 1 }}">‹ Página Anterior</a>
         {% endif %}
+        
         <span>Página {{ current_page }} de {{ total_pages }}</span>
+        
         {% if current_page < total_pages %}
-        <a href="/api/snh/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente</a>
+        <a href="/api/snh/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente ›</a>
         {% endif %}
     </div>
+    
     {% else %}
-    <div style="text-align: center; padding: 40px;">
+    <div class="no-results">
         <h3>No se encontraron resultados para "{{ search_term }}"</h3>
+        <p>Intenta con otros términos de búsqueda</p>
     </div>
     {% endif %}
 
@@ -1174,6 +1321,8 @@ SEARCH_NH_TEMPLATE = '''
             
             try {
                 const response = await fetch('/api/proxy-image?url=' + encodeURIComponent(originalSrc));
+                if (!response.ok) throw new Error('Error en la respuesta');
+                
                 const blob = await response.blob();
                 
                 const reader = new FileReader();
@@ -1203,8 +1352,10 @@ SEARCH_NH_TEMPLATE = '''
         }
 
         async function convertAllImages() {
-            const convertButtons = document.querySelectorAll('.convert-btn');
+            const convertButtons = document.querySelectorAll('.convert-btn:not(:disabled)');
             const convertAllBtn = document.querySelector('.convert-all-btn');
+            
+            if (convertButtons.length === 0) return;
             
             convertAllBtn.disabled = true;
             convertAllBtn.textContent = 'Convirtiendo todas...';
@@ -1217,8 +1368,16 @@ SEARCH_NH_TEMPLATE = '''
                 const originalSrc = imgElement.dataset.originalSrc;
                 
                 if (originalSrc && !originalSrc.includes('base64') && !originalSrc.includes('via.placeholder.com')) {
-                    btn.click();
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Simular clic en el botón
+                    const event = new MouseEvent('click', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    btn.dispatchEvent(event);
+                    
+                    // Esperar entre conversiones
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
             
@@ -1226,16 +1385,38 @@ SEARCH_NH_TEMPLATE = '''
             convertAllBtn.textContent = 'Convertir Todas las Imágenes a Base64';
         }
 
+        // Manejo de errores de imágenes
         document.addEventListener('DOMContentLoaded', function() {
             const images = document.querySelectorAll('img[data-original-src]');
             images.forEach(img => {
                 img.addEventListener('error', function() {
                     if (this.src && !this.src.includes('via.placeholder.com')) {
-                        this.src = 'https://via.placeholder.com/200x300?text=Error+cargando+imagen';
+                        this.src = 'https://via.placeholder.com/300x420/dc3545/ffffff?text=Error+cargando';
                     }
                 });
             });
         });
+
+        // Precarga suave de imágenes
+        function preloadVisibleImages() {
+            const images = document.querySelectorAll('img[data-original-src]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        if (img.dataset.loaded !== 'true') {
+                            img.src = img.dataset.originalSrc;
+                            img.dataset.loaded = 'true';
+                        }
+                        observer.unobserve(img);
+                    }
+                });
+            }, { rootMargin: '50px' });
+
+            images.forEach(img => observer.observe(img));
+        }
+
+        document.addEventListener('DOMContentLoaded', preloadVisibleImages);
     </script>
 </body>
 </html>
@@ -1246,118 +1427,242 @@ SEARCH_3H_TEMPLATE = '''
 <html>
 <head>
     <title>Búsqueda 3Hentai</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            padding: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .gallery-item {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .gallery-item img {
-            max-width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-        .gallery-name {
-            margin-top: 10px;
-            font-weight: bold;
-            font-size: 12px;
-            word-break: break-word;
-            height: 60px;
-            overflow: hidden;
-        }
-        .gallery-code {
-            color: #666;
-            font-size: 11px;
-            margin: 5px 0;
-        }
-        .search-form {
-            padding: 20px;
+        
+        body {
+            font-family: Arial, sans-serif;
             background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .search-form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             text-align: center;
         }
+        
         .search-form input {
-            padding: 8px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
             margin: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            min-width: 200px;
         }
+        
         .search-form button {
-            padding: 8px 16px;
-            background: #e846c9;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #e846c9 0%, #8e44ad 100%);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
         }
-        .pagination {
-            text-align: center;
-            padding: 20px;
+        
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 20px 0;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-        .pagination a {
-            margin: 0 10px;
-            padding: 8px 16px;
-            background: #e846c9;
+        
+        @media (min-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 20px;
+            }
+        }
+        
+        .gallery-item {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 140%;
+            overflow: hidden;
+        }
+        
+        .gallery-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+        
+        .gallery-info {
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .gallery-name {
+            font-weight: 600;
+            color: #333;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            flex: 1;
+            min-height: 60px;
+        }
+        
+        .gallery-code {
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .gallery-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .details-link {
+            background: #28a745;
             color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
             text-decoration: none;
-            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+            transition: background 0.3s;
         }
-        .pagination span {
-            margin: 0 15px;
-            font-weight: bold;
+        
+        .details-link:hover {
+            background: #218838;
+            text-decoration: none;
         }
+        
         .convert-btn {
             background: #ffc107;
             color: black;
             border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 8px 12px;
+            border-radius: 6px;
             cursor: pointer;
-            margin: 2px;
-            font-size: 11px;
+            font-size: 12px;
+            transition: background 0.3s;
         }
-        .loading {
-            opacity: 0.5;
+        
+        .convert-btn:hover {
+            background: #e0a800;
         }
+        
+        .convert-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .pagination a {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #e846c9 0%, #8e44ad 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+        
+        .pagination a:hover {
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        .pagination span {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+        
         .convert-all-btn {
             background: #17a2b8;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
+            padding: 12px 24px;
+            border-radius: 8px;
             cursor: pointer;
-            margin: 10px;
             font-size: 14px;
+            margin: 10px;
+            transition: background 0.3s;
         }
+        
+        .convert-all-btn:hover {
+            background: #138496;
+        }
+        
+        .convert-all-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
         .total-results {
             text-align: center;
             color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .no-results h3 {
             margin-bottom: 10px;
-        }
-        .download-link {
-            background: #28a745;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 11px;
-            display: inline-block;
-            margin: 2px;
-        }
-        .download-link:hover {
-            background: #218838;
+            font-size: 20px;
         }
     </style>
 </head>
@@ -1375,26 +1680,37 @@ SEARCH_3H_TEMPLATE = '''
     <div class="total-results">
         <strong>{{ total_results }}</strong> resultados totales - Página {{ current_page }} de {{ total_pages }}
     </div>
+    
     <div class="gallery-grid">
         {% for result in results %}
         <div class="gallery-item" id="gallery-{{ result.code }}">
-            {% if result.image_links and result.image_links[0] %}
-            <img src="{{ result.image_links[0] }}" alt="{{ result.name }}" 
-                 id="img-{{ result.code }}"
-                 data-original-src="{{ result.image_links[0] }}"
-                 onerror="this.src='https://via.placeholder.com/200x300?text=Imagen+no+disponible'">
-            {% else %}
-            <img src="https://via.placeholder.com/200x300?text=Sin+imagen" alt="Sin imagen" id="img-{{ result.code }}" data-original-src="">
-            {% endif %}
-            <div class="gallery-code">ID: {{ result.code }}</div>
-            <div class="gallery-name">{{ result.name }}</div>
-            <div style="margin-top: 10px;">
-                <a href="/api/v3h/{{ result.code }}" class="download-link" target="_blank">
-                    Ver Detalles
-                </a>
-                <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
-                    Convertir a Base64
-                </button>
+            <div class="image-container">
+                {% if result.image_links and result.image_links[0] %}
+                <img src="{{ result.image_links[0] }}" 
+                     alt="{{ result.name }}" 
+                     id="img-{{ result.code }}"
+                     data-original-src="{{ result.image_links[0] }}"
+                     onerror="this.src='https://via.placeholder.com/300x420/e846c9/ffffff?text=Imagen+no+disponible'">
+                {% else %}
+                <img src="https://via.placeholder.com/300x420/cccccc/ffffff?text=Sin+imagen" 
+                     alt="Sin imagen" 
+                     id="img-{{ result.code }}" 
+                     data-original-src="">
+                {% endif %}
+            </div>
+            
+            <div class="gallery-info">
+                <div class="gallery-code">ID: {{ result.code }}</div>
+                <div class="gallery-name">{{ result.name }}</div>
+                
+                <div class="gallery-actions">
+                    <a href="/api/v3h/{{ result.code }}" class="details-link" target="_blank">
+                        Ver Detalles
+                    </a>
+                    <button class="convert-btn" onclick="convertToBase64('{{ result.code }}')">
+                        Convertir a Base64
+                    </button>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -1402,16 +1718,20 @@ SEARCH_3H_TEMPLATE = '''
     
     <div class="pagination">
         {% if current_page > 1 %}
-        <a href="/api/s3h/{{ search_term }}?p={{ current_page - 1 }}">Página Anterior</a>
+        <a href="/api/s3h/{{ search_term }}?p={{ current_page - 1 }}">‹ Página Anterior</a>
         {% endif %}
+        
         <span>Página {{ current_page }} de {{ total_pages }}</span>
+        
         {% if current_page < total_pages %}
-        <a href="/api/s3h/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente</a>
+        <a href="/api/s3h/{{ search_term }}?p={{ current_page + 1 }}">Página Siguiente ›</a>
         {% endif %}
     </div>
+    
     {% else %}
-    <div style="text-align: center; padding: 40px;">
+    <div class="no-results">
         <h3>No se encontraron resultados para "{{ search_term }}"</h3>
+        <p>Intenta con otros términos de búsqueda</p>
     </div>
     {% endif %}
 
@@ -1432,6 +1752,8 @@ SEARCH_3H_TEMPLATE = '''
             
             try {
                 const response = await fetch('/api/proxy-image?url=' + encodeURIComponent(originalSrc));
+                if (!response.ok) throw new Error('Error en la respuesta');
+                
                 const blob = await response.blob();
                 
                 const reader = new FileReader();
@@ -1461,8 +1783,10 @@ SEARCH_3H_TEMPLATE = '''
         }
 
         async function convertAllImages() {
-            const convertButtons = document.querySelectorAll('.convert-btn');
+            const convertButtons = document.querySelectorAll('.convert-btn:not(:disabled)');
             const convertAllBtn = document.querySelector('.convert-all-btn');
+            
+            if (convertButtons.length === 0) return;
             
             convertAllBtn.disabled = true;
             convertAllBtn.textContent = 'Convirtiendo todas...';
@@ -1475,8 +1799,14 @@ SEARCH_3H_TEMPLATE = '''
                 const originalSrc = imgElement.dataset.originalSrc;
                 
                 if (originalSrc && !originalSrc.includes('base64') && !originalSrc.includes('via.placeholder.com')) {
-                    btn.click();
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const event = new MouseEvent('click', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    btn.dispatchEvent(event);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
             
@@ -1489,11 +1819,31 @@ SEARCH_3H_TEMPLATE = '''
             images.forEach(img => {
                 img.addEventListener('error', function() {
                     if (this.src && !this.src.includes('via.placeholder.com')) {
-                        this.src = 'https://via.placeholder.com/200x300?text=Error+cargando+imagen';
+                        this.src = 'https://via.placeholder.com/300x420/dc3545/ffffff?text=Error+cargando';
                     }
                 });
             });
         });
+
+        function preloadVisibleImages() {
+            const images = document.querySelectorAll('img[data-original-src]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        if (img.dataset.loaded !== 'true') {
+                            img.src = img.dataset.originalSrc;
+                            img.dataset.loaded = 'true';
+                        }
+                        observer.unobserve(img);
+                    }
+                });
+            }, { rootMargin: '50px' });
+
+            images.forEach(img => observer.observe(img));
+        }
+
+        document.addEventListener('DOMContentLoaded', preloadVisibleImages);
     </script>
 </body>
 </html>
