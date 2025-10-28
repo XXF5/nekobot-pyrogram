@@ -53,6 +53,17 @@ def cmd(command_env, int_lvl):
         print(f"[!] Error al acceder to bot_cmd.db: {e}")
         return False
 
+async def send_thanks_response(client, message):
+    sticker1 = "CAACAgIAAxkBAAKIrWkAAccNDNiK8WZB5cO_sZz-wmlP2AAC3EsAAh9SSEtUr8U_tAoCoB4E"
+    sticker2 = "CAACAgIAAxkBAAKIsWkAAccpr_2KQcWqauJ3Gxs2Q8RqZwACkEMAAjeJSUu0N9e8-UNkeh4E"
+    
+    await client.send_sticker(chat_id=message.chat.id, sticker=sticker1)
+    await asyncio.sleep(1)
+    await message.reply("Esto... soy un bot, solo hago lo que estoy programando para hacer, no necesitas agradecerme")
+    await asyncio.sleep(1)
+    await message.reply("Pero mi creador @nakigeplayer se siente feliz de que consideres la idea de agradecer al bot")
+    await asyncio.sleep(1)
+    await client.send_sticker(chat_id=message.chat.id, sticker=sticker2)
 async def process_command(client, message, user_id, username, chat_id, int_lvl):
     bot_info = await client.get_me()
     me_bot_id = str(bot_info.id)
@@ -66,6 +77,9 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
         textori = textori.replace('.', '/', 1)
     
     text = textori.lower()
+    if "gracias" in text:
+        await send_thanks_response(client, message)
+        return
 
     is_anonymous = message.from_user is None
 
