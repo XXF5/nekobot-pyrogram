@@ -79,7 +79,6 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
     text = textori.lower()
     if "gracias" in text:
         await send_thanks_response(client, message)
-        return
 
     is_anonymous = message.from_user is None
 
