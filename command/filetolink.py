@@ -92,7 +92,7 @@ async def handle_up_command(client: Client, message: Message):
                 current_mb = current_bytes / (1024 * 1024)
                 total_mb = total_bytes / (1024 * 1024)
 
-                if time.time() - last_update >= 2:
+                if time.time() - last_update >= 10:
                     await safe_call(progress_msg.edit_text,
                         f"📥 Descargando archivo...\n"
                         f"🕒 Tiempo: {formatted_time}\n"
@@ -158,7 +158,7 @@ async def handle_auto_up_command(client: Client, message: Message):
                 current_mb = current_bytes / (1024 * 1024)
                 total_mb = total_bytes / (1024 * 1024)
 
-                if time.time() - last_update >= 2:
+                if time.time() - last_update >= 10:
                     await safe_call(progress_msg.edit_text,
                         f"📥 Descargando archivo...\n"
                         f"🕒 Tiempo: {formatted_time}\n"
