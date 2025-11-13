@@ -75,28 +75,33 @@ async def handle_up_command(client: Client, message: Message):
 
     progress_msg = await message.reply("📥 Iniciando descarga...")
     start_time = time.time()
+    download_completed = False
     current_bytes = 0
     total_bytes = 0
 
     async def update_download_progress():
-        while current_bytes < total_bytes:
-            elapsed = int(time.time() - start_time)
-            formatted_time = format_time(elapsed)
-            progress_ratio = current_bytes / total_bytes if total_bytes > 0 else 0
-            bar_length = 20
-            filled_length = int(bar_length * progress_ratio)
-            bar = "█" * filled_length + "▒" * (bar_length - filled_length)
-            current_mb = current_bytes / (1024 * 1024)
-            total_mb = total_bytes / (1024 * 1024)
+        last_update = time.time()
+        while not download_completed:
+            if total_bytes > 0:
+                elapsed = int(time.time() - start_time)
+                formatted_time = format_time(elapsed)
+                progress_ratio = current_bytes / total_bytes
+                bar_length = 20
+                filled_length = int(bar_length * progress_ratio)
+                bar = "█" * filled_length + "▒" * (bar_length - filled_length)
+                current_mb = current_bytes / (1024 * 1024)
+                total_mb = total_bytes / (1024 * 1024)
 
-            await safe_call(progress_msg.edit_text,
-                f"📥 Descargando archivo...\n"
-                f"🕒 Tiempo: {formatted_time}\n"
-                f"📊 Progreso: {current_mb:.2f} MB / {total_mb:.2f} MB\n"
-                f"📉 [{bar}] {progress_ratio*100:.1f}%\n"
-                f"📄 Archivo: {os.path.basename(full_path)}"
-            )
-            await asyncio.sleep(2)
+                if time.time() - last_update >= 2:
+                    await safe_call(progress_msg.edit_text,
+                        f"📥 Descargando archivo...\n"
+                        f"🕒 Tiempo: {formatted_time}\n"
+                        f"📊 Progreso: {current_mb:.2f} MB / {total_mb:.2f} MB\n"
+                        f"📉 [{bar}] {progress_ratio*100:.1f}%\n"
+                        f"📄 Archivo: {os.path.basename(full_path)}"
+                    )
+                    last_update = time.time()
+            await asyncio.sleep(0.5)
 
     def download_progress(current, total):
         nonlocal current_bytes, total_bytes
@@ -107,11 +112,13 @@ async def handle_up_command(client: Client, message: Message):
 
     try:
         await client.download_media(message.reply_to_message, full_path, progress=download_progress)
-        download_task.cancel()
+        download_completed = True
+        await download_task
         elapsed = int(time.time() - start_time)
         await progress_msg.delete()
     except Exception as e:
-        download_task.cancel()
+        download_completed = True
+        await download_task
         await progress_msg.edit_text(f"❌ Error en descarga: {e}")
         return
 
@@ -134,28 +141,33 @@ async def handle_auto_up_command(client: Client, message: Message):
 
     progress_msg = await message.reply("📥 Iniciando descarga automática...")
     start_time = time.time()
+    download_completed = False
     current_bytes = 0
     total_bytes = 0
 
     async def update_download_progress():
-        while current_bytes < total_bytes:
-            elapsed = int(time.time() - start_time)
-            formatted_time = format_time(elapsed)
-            progress_ratio = current_bytes / total_bytes if total_bytes > 0 else 0
-            bar_length = 20
-            filled_length = int(bar_length * progress_ratio)
-            bar = "█" * filled_length + "▒" * (bar_length - filled_length)
-            current_mb = current_bytes / (1024 * 1024)
-            total_mb = total_bytes / (1024 * 1024)
+        last_update = time.time()
+        while not download_completed:
+            if total_bytes > 0:
+                elapsed = int(time.time() - start_time)
+                formatted_time = format_time(elapsed)
+                progress_ratio = current_bytes / total_bytes
+                bar_length = 20
+                filled_length = int(bar_length * progress_ratio)
+                bar = "█" * filled_length + "▒" * (bar_length - filled_length)
+                current_mb = current_bytes / (1024 * 1024)
+                total_mb = total_bytes / (1024 * 1024)
 
-            await safe_call(progress_msg.edit_text,
-                f"📥 Descargando archivo...\n"
-                f"🕒 Tiempo: {formatted_time}\n"
-                f"📊 Progreso: {current_mb:.2f} MB / {total_mb:.2f} MB\n"
-                f"📉 [{bar}] {progress_ratio*100:.1f}%\n"
-                f"📄 Archivo: {os.path.basename(full_path)}"
-            )
-            await asyncio.sleep(2)
+                if time.time() - last_update >= 2:
+                    await safe_call(progress_msg.edit_text,
+                        f"📥 Descargando archivo...\n"
+                        f"🕒 Tiempo: {formatted_time}\n"
+                        f"📊 Progreso: {current_mb:.2f} MB / {total_mb:.2f} MB\n"
+                        f"📉 [{bar}] {progress_ratio*100:.1f}%\n"
+                        f"📄 Archivo: {os.path.basename(full_path)}"
+                    )
+                    last_update = time.time()
+            await asyncio.sleep(0.5)
 
     def download_progress(current, total):
         nonlocal current_bytes, total_bytes
@@ -166,11 +178,13 @@ async def handle_auto_up_command(client: Client, message: Message):
 
     try:
         await client.download_media(message, full_path, progress=download_progress)
-        download_task.cancel()
+        download_completed = True
+        await download_task
         elapsed = int(time.time() - start_time)
         await progress_msg.delete()
     except Exception as e:
-        download_task.cancel()
+        download_completed = True
+        await download_task
         await progress_msg.edit_text(f"❌ Error en descarga: {e}")
         return
 
