@@ -73,14 +73,53 @@ async def handle_up_command(client: Client, message: Message):
     full_path = os.path.join(VAULT_FOLDER, relative_path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-    await client.download_media(message.reply_to_message, full_path)
+    progress_msg = await message.reply("📥 Iniciando descarga...")
+    start_time = time.time()
+    current_bytes = 0
+    total_bytes = 0
+
+    async def update_download_progress():
+        while current_bytes < total_bytes:
+            elapsed = int(time.time() - start_time)
+            formatted_time = format_time(elapsed)
+            progress_ratio = current_bytes / total_bytes if total_bytes > 0 else 0
+            bar_length = 20
+            filled_length = int(bar_length * progress_ratio)
+            bar = "█" * filled_length + "▒" * (bar_length - filled_length)
+            current_mb = current_bytes / (1024 * 1024)
+            total_mb = total_bytes / (1024 * 1024)
+
+            await safe_call(progress_msg.edit_text,
+                f"📥 Descargando archivo...\n"
+                f"🕒 Tiempo: {formatted_time}\n"
+                f"📊 Progreso: {current_mb:.2f} MB / {total_mb:.2f} MB\n"
+                f"📉 [{bar}] {progress_ratio*100:.1f}%\n"
+                f"📄 Archivo: {os.path.basename(full_path)}"
+            )
+            await asyncio.sleep(2)
+
+    def download_progress(current, total):
+        nonlocal current_bytes, total_bytes
+        current_bytes = current
+        total_bytes = total
+
+    download_task = asyncio.create_task(update_download_progress())
+
+    try:
+        await client.download_media(message.reply_to_message, full_path, progress=download_progress)
+        download_task.cancel()
+        elapsed = int(time.time() - start_time)
+        await progress_msg.delete()
+    except Exception as e:
+        download_task.cancel()
+        await progress_msg.edit_text(f"❌ Error en descarga: {e}")
+        return
 
     if args.web:
         download_link = f"{args.web.rstrip('/')}/{relative_path.replace(os.sep, '/')}"
-        await message.reply(f"🔗 Link de descarga: `{download_link}`")
+        await message.reply(f"✅ Descarga completada en {elapsed}s\n🔗 Link: `{download_link}`")
     else:
-        await message.reply(f"✅ Archivo guardado como `{relative_path}` en `{VAULT_FOLDER}`.")
-
+        await message.reply(f"✅ Descarga completada en {elapsed}s\nArchivo guardado como `{relative_path}`")
 
 async def handle_auto_up_command(client: Client, message: Message):
     from arg_parser import get_args
@@ -93,13 +132,54 @@ async def handle_auto_up_command(client: Client, message: Message):
     full_path = os.path.join(VAULT_FOLDER, relative_path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-    await client.download_media(message, full_path)
+    progress_msg = await message.reply("📥 Iniciando descarga automática...")
+    start_time = time.time()
+    current_bytes = 0
+    total_bytes = 0
+
+    async def update_download_progress():
+        while current_bytes < total_bytes:
+            elapsed = int(time.time() - start_time)
+            formatted_time = format_time(elapsed)
+            progress_ratio = current_bytes / total_bytes if total_bytes > 0 else 0
+            bar_length = 20
+            filled_length = int(bar_length * progress_ratio)
+            bar = "█" * filled_length + "▒" * (bar_length - filled_length)
+            current_mb = current_bytes / (1024 * 1024)
+            total_mb = total_bytes / (1024 * 1024)
+
+            await safe_call(progress_msg.edit_text,
+                f"📥 Descargando archivo...\n"
+                f"🕒 Tiempo: {formatted_time}\n"
+                f"📊 Progreso: {current_mb:.2f} MB / {total_mb:.2f} MB\n"
+                f"📉 [{bar}] {progress_ratio*100:.1f}%\n"
+                f"📄 Archivo: {os.path.basename(full_path)}"
+            )
+            await asyncio.sleep(2)
+
+    def download_progress(current, total):
+        nonlocal current_bytes, total_bytes
+        current_bytes = current
+        total_bytes = total
+
+    download_task = asyncio.create_task(update_download_progress())
+
+    try:
+        await client.download_media(message, full_path, progress=download_progress)
+        download_task.cancel()
+        elapsed = int(time.time() - start_time)
+        await progress_msg.delete()
+    except Exception as e:
+        download_task.cancel()
+        await progress_msg.edit_text(f"❌ Error en descarga: {e}")
+        return
 
     if args.web:
         download_link = f"{args.web.rstrip('/')}/{relative_path.replace(os.sep, '/')}"
-        await message.reply(f"🔗 Link de descarga: `{download_link}`")
+        await message.reply(f"✅ Descarga automática completada en {elapsed}s\n🔗 Link: `{download_link}`")
     else:
-        await message.reply(f"✅ Archivo guardado como `{relative_path}` en `{VAULT_FOLDER}`.")
+        await message.reply(f"✅ Descarga automática completada en {elapsed}s\nArchivo guardado como `{relative_path}`")
+
 async def list_vault_files(client: Client, message: Message):
     if not os.path.isdir(VAULT_FOLDER):
         await client.send_message(message.from_user.id, "📁 La carpeta está vacía o no existe.")
@@ -303,8 +383,6 @@ async def send_vault_file_by_index(client, message):
 
                     if mime_main == "image":
                         await safe_call(client.send_photo, message.chat.id, photo=path, caption=f"🖼️ {os.path.basename(path)}", progress=progress)
-                    #elif mime_main == "video":
-                        #await safe_call(client.send_video, message.chat.id, video=path, caption=f"🎬 {os.path.basename(path)}", progress=progress)
                     else:
                         await safe_call(client.send_document, message.chat.id, document=path, caption=f"📤 {os.path.basename(path)}", progress=progress)
 
