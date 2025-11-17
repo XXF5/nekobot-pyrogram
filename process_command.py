@@ -213,7 +213,7 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                     cambiar_default_selection(user_id, selection)
                     await message.reply(f"¡Selección predeterminada cambiada a '{selection if selection else 'None'}'!")
                 else:
-                    await message.reply("Opción inválida. Usa: '/setfile cbz', '/setfile pdf', '/setfile both', "/setfile pics' o '/setfile none'.")
+                    await message.reply("Opción inválida. Usa: '/setfile cbz', '/setfile pdf', '/setfile both', '/setfile pics' o '/setfile none'.")
                 return
 
             if command == "/searchnh":
