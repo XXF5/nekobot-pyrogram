@@ -18,8 +18,6 @@ from pyrogram.types import InputMediaPhoto
 from command.get_files.scrap_nh import scrape_nhentai_with_selenium
 
 from command.get_files.search_3h import scrape_3hentai_search
-
-# Añadir esta importación al principio del archivo
 from command.get_files.hitomi import obtener_info_hitomi, descargar_y_comprimir_hitomi
 
 async def api_search_3hentai(search_term, page=1):
@@ -390,6 +388,8 @@ async def enviar_grupo_imagenes(client, chat_id, paths, caption, proteger, reply
                 reply_to_message_id=reply_to_message_id
             )
 
+
+
 async def nh_combined_operation(client, message, codigos, tipo, proteger, userid, operacion, int_lvl):
     seleccion = defaultselectionmap.get(userid, "cbz")
     EXTENSIONES = {"cbz": ".cbz", "pdf": ".pdf", "both": ".cbz", "pics": ""}
@@ -432,7 +432,6 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                 if len(nombrebase) > max_nombre_len:
                     nombrebase = nombrebase[:max_nombre_len].rstrip()
 
-                nombrelimpio_completo = limpiarnombre(texto_original)
                 carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
                 os.makedirs(carpeta_temporal, exist_ok=True)
 
@@ -475,18 +474,27 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                 )
 
                 try:
-                    paths = descargar_y_comprimir_hitomi(codigo, inicio, fin)
+                    # Obtener la carpeta con las imágenes descargadas
+                    carpeta_hitomi = descargar_y_comprimir_hitomi(codigo, inicio, fin)
                     
-                    if not paths:
+                    if not carpeta_hitomi or not os.path.exists(carpeta_hitomi):
                         raise Exception("No se pudieron descargar las imágenes")
+
+                    # Obtener lista de archivos de imagen ordenados
+                    paths = []
+                    if os.path.exists(carpeta_hitomi):
+                        archivos = sorted([f for f in os.listdir(carpeta_hitomi) 
+                                         if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
+                        for archivo in archivos:
+                            paths.append(os.path.join(carpeta_hitomi, archivo))
 
                     await progresomsg.edit_text(
                         f"📦 Procesando imágenes para {texto_titulo} ({len(paths)} páginas)...\nProgreso {len(paths)}/{len(paths)}"
                     )
 
-                    if int_lvl < 5:
+                    if int_lvl < 5 and paths:
                         finalimage_path = os.path.join("command", "spam.png")
-                        finalpage_path = os.path.join(os.path.dirname(paths[0]), f"{len(paths)+1:03d}.png")
+                        finalpage_path = os.path.join(carpeta_hitomi, f"{len(paths)+1:03d}.png")
                         shutil.copyfile(finalimage_path, finalpage_path)
                         paths.append(finalpage_path)
 
@@ -495,26 +503,11 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                     if seleccion in ["cbz", "both"]:
                         cbzbase = f"{nombrebase}"
                         cbzpath = f"{cbzbase}.cbz"
-                        
-                        # Crear carpeta temporal para CBZ
-                        temp_cbz_dir = os.path.join(BASE_DIR, str(uuid.uuid4()))
-                        os.makedirs(temp_cbz_dir, exist_ok=True)
-                        
-                        try:
-                            # Copiar imágenes a carpeta temporal
-                            for idx, img_path in enumerate(paths):
-                                ext = os.path.splitext(img_path)[1]
-                                new_path = os.path.join(temp_cbz_dir, f"{idx+1:03d}{ext}")
-                                shutil.copy2(img_path, new_path)
-                            
-                            shutil.make_archive(cbzbase, 'zip', temp_cbz_dir)
-                            os.rename(f"{cbzbase}.zip", cbzpath)
-                            archivos.append(cbzpath)
-                        finally:
-                            if os.path.exists(temp_cbz_dir):
-                                shutil.rmtree(temp_cbz_dir, ignore_errors=True)
+                        shutil.make_archive(cbzbase, 'zip', carpeta_hitomi)
+                        os.rename(f"{cbzbase}.zip", cbzpath)
+                        archivos.append(cbzpath)
 
-                    if seleccion in ["pdf", "both"]:
+                    if seleccion in ["pdf", "both"] and paths:
                         pdfpath = f"{nombrebase}.pdf"
                         try:
                             mainimages = []
@@ -530,7 +523,7 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                         except Exception as e:
                             await safe_call(message.reply, f"❌ Error al generar PDF para {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
 
-                    if seleccion == "pics":
+                    if seleccion == "pics" and paths:
                         await enviar_grupo_imagenes(client, message.chat.id, paths, texto_titulo, proteger, cover_message.id)
 
                     for archivo in archivos:
@@ -546,14 +539,9 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                 except Exception as e:
                     await safe_call(message.reply, f"❌ Error procesando {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
                 finally:
-                    # Limpiar archivos temporales de hitomi
-                    if paths:
-                        img_dir = os.path.dirname(paths[0])
-                        for img_path in paths:
-                            if os.path.exists(img_path):
-                                os.remove(img_path)
-                        if img_dir and os.path.exists(img_dir):
-                            shutil.rmtree(img_dir, ignore_errors=True)
+                    # Limpiar carpetas temporales
+                    if 'carpeta_hitomi' in locals() and carpeta_hitomi and os.path.exists(carpeta_hitomi):
+                        shutil.rmtree(carpeta_hitomi, ignore_errors=True)
                     if carpeta_temporal and os.path.exists(carpeta_temporal):
                         shutil.rmtree(carpeta_temporal, ignore_errors=True)
                     await safe_call(progresomsg.delete)
@@ -561,7 +549,7 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
             except Exception as e:
                 await safe_call(message.reply, f"❌ Error con Hitomi.la: {e}", reply_to_message_id=message.id)
             continue
-            
+
 async def nh_combined_operation_txt(client, message, tipo, proteger, userid, operacion, int_lvl):
     if not message.reply_to_message or not message.reply_to_message.document:
         await safe_call(message.reply, "❌ Debes responder a un archivo .txt", reply_to_message_id=message.id)
