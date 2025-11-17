@@ -226,7 +226,7 @@ def obtener_info_hitomi(codigo: str):
 
         urls_imagenes = []
         contador = 1
-        max_paginas = 500
+        max_paginas = float('inf')
         duplicados_consecutivos = 0
         max_duplicados_consecutivos = 10
         urls_vistas = set()
