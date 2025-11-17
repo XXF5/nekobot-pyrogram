@@ -196,17 +196,6 @@ async def send_nhentai_results(message, client, arg_text):
 BASE_DIR = "vault_files/doujins"
 os.makedirs(BASE_DIR, exist_ok=True)
 
-async def safe_call(func, *args, **kwargs):
-    while True:
-        try:
-            return await func(*args, **kwargs)
-        except FloodWait as e:
-            print(f"⏳ Esperando {e.value} seg para continuar")
-            await asyncio.sleep(e.value)
-        except Exception as e:
-            print(f"❌ Error inesperado en {func.__name__}: {type(e).__name__}: {e}")
-            raise
-
 async def crear_cbz_desde_fuente(codigo: str, tipo: str, inicio=None, fin=None) -> str:
     from command.get_files.hitomi import descargar_y_comprimir_hitomi
     from command.get_files.nh_selenium import scrape_nhentai
@@ -228,10 +217,23 @@ async def crear_cbz_desde_fuente(codigo: str, tipo: str, inicio=None, fin=None) 
                     f.write(await resp.read())
 
     if tipo == "hito":
-        cbz_path = descargar_y_comprimir_hitomi(codigo, inicio, fin)
-        final_path = os.path.join(BASE_DIR, os.path.basename(cbz_path))
-        shutil.move(cbz_path, final_path)
-        return final_path
+        carpeta_temporal = descargar_y_comprimir_hitomi(codigo, inicio, fin)
+        if not carpeta_temporal or not os.path.exists(carpeta_temporal):
+            raise ValueError("No se pudo descargar las imágenes de Hitomi")
+        
+        datos = obtener_info_hitomi(codigo)
+        texto = datos.get("texto", "").strip()
+        
+        nombrelimpio = limpiarnombre(texto)
+        nombrebase = f"{codigo} {nombrelimpio}" if nombrelimpio else f"{tipo} {codigo}"
+        nombrebase = nombrebase.strip()
+        cbz_filename = f"{nombrebase}.cbz"
+        cbz_path = os.path.join(BASE_DIR, cbz_filename)
+        
+        shutil.make_archive(nombrebase, 'zip', carpeta_temporal)
+        os.rename(f"{nombrebase}.zip", cbz_path)
+        shutil.rmtree(carpeta_temporal, ignore_errors=True)
+        return cbz_path
 
     if tipo == "nh":
         result = scrape_nhentai(codigo)
@@ -273,7 +275,18 @@ async def crear_cbz_desde_fuente(codigo: str, tipo: str, inicio=None, fin=None) 
         return cbz_path
     finally:
         shutil.rmtree(temp_uuid_dir, ignore_errors=True)
-        
+
+async def safe_call(func, *args, **kwargs):
+    while True:
+        try:
+            return await func(*args, **kwargs)
+        except FloodWait as e:
+            print(f"⏳ Esperando {e.value} seg para continuar")
+            await asyncio.sleep(e.value)
+        except Exception as e:
+            print(f"❌ Error inesperado en {func.__name__}: {type(e).__name__}: {e}")
+            raise
+
 defaultselectionmap = {}
 
 def cambiar_default_selection(userid, nuevaseleccion):
@@ -428,26 +441,23 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
 
                 try:
                     paths = []
-                    async with aiohttp.ClientSession() as session:
-                        tasks = []
-                        for idx, url in enumerate(imagenes):
-                            ext = os.path.splitext(url)[1].lower()
-                            if ext not in [".jpg", ".jpeg", ".png"]:
-                                ext = ".jpg"
-                            path = os.path.join(carpeta_temporal, f"{idx+1:03d}{ext}")
-                            tasks.append(descargarimagen_async(session, url, path))
-                            paths.append(path)
+                    carpeta_hitomi = descargar_y_comprimir_hitomi(codigo, inicio, fin)
+                    
+                    if carpeta_hitomi and os.path.exists(carpeta_hitomi):
+                        archivos_descargados = sorted([f for f in os.listdir(carpeta_hitomi) if os.path.isfile(os.path.join(carpeta_hitomi, f))])
+                        for file in archivos_descargados:
+                            ruta_completa = os.path.join(carpeta_hitomi, file)
+                            paths.append(ruta_completa)
                         
-                        for i, task in enumerate(asyncio.as_completed(tasks)):
-                            await task
-                            if (i + 1) % 5 == 0 or i + 1 == len(tasks):
-                                await progresomsg.edit_text(
-                                    f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes)} páginas)...\nProgreso {i+1}/{len(imagenes)}"
-                                )
+                        await progresomsg.edit_text(
+                            f"📦 Procesando imágenes para {texto_titulo} ({len(paths)} páginas)...\nProgreso {len(paths)}/{len(paths)}"
+                        )
+                    else:
+                        raise Exception("No se pudieron descargar las imágenes")
 
                     if int_lvl < 5:
                         finalimage_path = os.path.join("command", "spam.png")
-                        finalpage_path = os.path.join(carpeta_temporal, f"{len(paths)+1:03d}.png")
+                        finalpage_path = os.path.join(carpeta_hitomi, f"{len(paths)+1:03d}.png")
                         shutil.copyfile(finalimage_path, finalpage_path)
                         paths.append(finalpage_path)
 
@@ -456,7 +466,7 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                     if seleccion in ["cbz", "both"]:
                         cbzbase = f"{nombrebase}"
                         cbzpath = f"{cbzbase}.cbz"
-                        shutil.make_archive(cbzbase, 'zip', carpeta_temporal)
+                        shutil.make_archive(cbzbase, 'zip', carpeta_hitomi)
                         os.rename(f"{cbzbase}.zip", cbzpath)
                         archivos.append(cbzpath)
 
@@ -492,141 +502,15 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                 except Exception as e:
                     await safe_call(message.reply, f"❌ Error procesando {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
                 finally:
-                    shutil.rmtree(carpeta_temporal, ignore_errors=True)
+                    if carpeta_hitomi and os.path.exists(carpeta_hitomi):
+                        shutil.rmtree(carpeta_hitomi, ignore_errors=True)
+                    if carpeta_temporal and os.path.exists(carpeta_temporal):
+                        shutil.rmtree(carpeta_temporal, ignore_errors=True)
                     await safe_call(progresomsg.delete)
                     
             except Exception as e:
                 await safe_call(message.reply, f"❌ Error con Hitomi.la: {e}", reply_to_message_id=message.id)
             continue
-
-        datos = obtenerporcli(codigo, tipo, cover=(operacion == "cover"))
-        texto_original = datos.get("texto", "").strip()
-        tags = datos.get("tags", {})
-        texto_titulo = f"{codigo} {texto_original}"
-        nombrelimpio = limpiarnombre(texto_original)
-        nombrebase = f"{codigo} {nombrelimpio}" if nombrelimpio else f"{tipo} {codigo}"
-        nombrebase = nombrebase.strip()
-        max_nombre_len = MAX_FILENAME_LEN - len(extension)
-        if len(nombrebase) > max_nombre_len:
-            nombrebase = nombrebase[:max_nombre_len].rstrip()
-
-        nombrelimpio_completo = limpiarnombre(texto_original)
-        carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
-        os.makedirs(carpeta_temporal, exist_ok=True)
-
-        imagenes = datos["imagenes"]
-        if not imagenes:
-            await safe_call(message.reply, f"❌ No se encontraron imágenes para {codigo}", reply_to_message_id=message.id)
-            shutil.rmtree(carpeta_temporal, ignore_errors=True)
-            continue
-
-        try:
-            previewpath = os.path.join(carpeta_temporal, f"{nombrebase}_preview.jpg")
-            async with aiohttp.ClientSession() as session:
-                await descargarimagen_async(session, imagenes[0], previewpath)
-
-            caption_lines = [f"{texto_titulo} Número de páginas: {len(imagenes)}"]
-            
-            if tags:
-                caption_lines.append("\n🏷️ **Tags:**")
-                for category, tag_list in tags.items():
-                    if tag_list:
-                        caption_lines.append(f"• **{category}:** {', '.join(tag_list)}")
-
-            caption = "\n".join(caption_lines)
-
-            cover_message = await safe_call(client.send_photo,
-                chat_id=message.chat.id,
-                photo=previewpath,
-                caption=caption,
-                protect_content=proteger,
-                reply_to_message_id=message.id
-            )
-            os.remove(previewpath)
-
-        except Exception as e:
-            await safe_call(message.reply, f"❌ No pude enviar la portada para {texto_titulo}: {e}", reply_to_message_id=message.id)
-            shutil.rmtree(carpeta_temporal, ignore_errors=True)
-            continue
-
-        if operacion == "cover":
-            shutil.rmtree(carpeta_temporal, ignore_errors=True)
-            continue
-
-        progresomsg = await safe_call(message.reply,
-            f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes)} páginas)...\nProgreso 0/{len(imagenes)}",
-            reply_to_message_id=message.id
-        )
-
-        try:
-            paths = []
-            async with aiohttp.ClientSession() as session:
-                tasks = []
-                for idx, url in enumerate(imagenes):
-                    ext = os.path.splitext(url)[1].lower()
-                    if ext not in [".jpg", ".jpeg", ".png"]:
-                        ext = ".jpg"
-                    path = os.path.join(carpeta_temporal, f"{idx+1:03d}{ext}")
-                    tasks.append(descargarimagen_async(session, url, path))
-                    paths.append(path)
-                
-                for i, task in enumerate(asyncio.as_completed(tasks)):
-                    await task
-                    if (i + 1) % 5 == 0 or i + 1 == len(tasks):
-                        await progresomsg.edit_text(
-                            f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes)} páginas)...\nProgreso {i+1}/{len(imagenes)}"
-                        )
-
-            if int_lvl < 5:
-                finalimage_path = os.path.join("command", "spam.png")
-                finalpage_path = os.path.join(carpeta_temporal, f"{len(paths)+1:03d}.png")
-                shutil.copyfile(finalimage_path, finalpage_path)
-                paths.append(finalpage_path)
-
-            archivos = []
-
-            if seleccion in ["cbz", "both"]:
-                cbzbase = f"{nombrebase}"
-                cbzpath = f"{cbzbase}.cbz"
-                shutil.make_archive(cbzbase, 'zip', carpeta_temporal)
-                os.rename(f"{cbzbase}.zip", cbzpath)
-                archivos.append(cbzpath)
-
-            if seleccion in ["pdf", "both"]:
-                pdfpath = f"{nombrebase}.pdf"
-                try:
-                    mainimages = []
-                    for path in paths:
-                        try:
-                            with Image.open(path) as im:
-                                mainimages.append(im.convert("RGB"))
-                        except Exception:
-                            continue
-                    if mainimages:
-                        mainimages[0].save(pdfpath, save_all=True, append_images=mainimages[1:])
-                        archivos.append(pdfpath)
-                except Exception as e:
-                    await safe_call(message.reply, f"❌ Error al generar PDF para {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
-
-            if seleccion == "pics":
-                await enviar_grupo_imagenes(client, message.chat.id, paths, texto_titulo, proteger, cover_message.id)
-
-            for archivo in archivos:
-                await safe_call(client.send_document,
-                    chat_id=message.chat.id,
-                    document=archivo,
-                    caption=texto_titulo,
-                    protect_content=proteger,
-                    reply_to_message_id=cover_message.id
-                )
-                os.remove(archivo)
-
-        except Exception as e:
-            await safe_call(message.reply, f"❌ Error procesando {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
-        finally:
-            shutil.rmtree(carpeta_temporal, ignore_errors=True)
-            await safe_call(progresomsg.delete)
-
 async def nh_combined_operation_txt(client, message, tipo, proteger, userid, operacion, int_lvl):
     if not message.reply_to_message or not message.reply_to_message.document:
         await safe_call(message.reply, "❌ Debes responder a un archivo .txt", reply_to_message_id=message.id)
