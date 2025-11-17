@@ -262,7 +262,7 @@ def obtener_info_hitomi(codigo: str):
         print(f"❌ Error obteniendo información de Hitomi: {str(e)}")
         return {"texto": "", "imagenes": [], "tags": {}}
 
-def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = None) -> str:
+def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = None):
     try:
         datos = obtener_info_hitomi(entrada)
         texto_original = datos.get("texto", "").strip()
@@ -276,7 +276,7 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
             imagenes = imagenes[inicio-1:fin]
         
         if not imagenes:
-            return ""
+            return []
 
         carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
         os.makedirs(carpeta_temporal, exist_ok=True)
@@ -288,6 +288,8 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
             'Accept-Language': 'en-US,en;q=0.9',
         }
 
+        paths_imagenes = []
+        
         for idx, url in enumerate(imagenes):
             if '.webp' in url:
                 extension = '.webp'
@@ -301,11 +303,13 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
             nombre_archivo = f"{idx+1:04d}{extension}"
             ruta_destino = os.path.join(carpeta_temporal, nombre_archivo)
             
-            if not descargar_imagen_con_reintentos(url, ruta_destino, headers):
+            if descargar_imagen_con_reintentos(url, ruta_destino, headers):
+                paths_imagenes.append(ruta_destino)
+            else:
                 print(f"❌ Error descargando imagen {idx+1}")
 
-        return carpeta_temporal
+        return paths_imagenes
 
     except Exception as e:
         print(f"❌ Error fatal: {str(e)}")
-        return ""
+        return []
