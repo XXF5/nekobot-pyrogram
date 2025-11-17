@@ -262,7 +262,6 @@ def obtener_info_hitomi(codigo: str):
         print(f"❌ Error obteniendo información de Hitomi: {str(e)}")
         return {"texto": "", "imagenes": [], "tags": {}}
 
-
 def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = None):
     try:
         datos = obtener_info_hitomi(entrada)
@@ -274,7 +273,7 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
                 inicio = 1
             if fin is None:
                 fin = len(imagenes)
-            # Ajustar índices (las listas empiezan en 0)
+                
             inicio_idx = inicio - 1
             fin_idx = fin
             imagenes = imagenes[inicio_idx:fin_idx]
@@ -282,7 +281,8 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
         if not imagenes:
             return ""
 
-        carpeta_final = os.path.join(BASE_DIR, f"hitomi_{uuid.uuid4().hex}")
+        nombre_carpeta = f"hitomi_{uuid.uuid4().hex}"
+        carpeta_final = os.path.join(BASE_DIR, nombre_carpeta)
         os.makedirs(carpeta_final, exist_ok=True)
 
         headers = {
@@ -308,8 +308,7 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
             if not descargar_imagen_con_reintentos(url, ruta_destino, headers):
                 print(f"❌ Error descargando imagen {idx+1}")
 
-        return carpeta_final
-
+        return nombre_carpeta  
     except Exception as e:
         print(f"❌ Error fatal: {str(e)}")
         return ""
