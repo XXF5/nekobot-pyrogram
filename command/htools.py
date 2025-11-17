@@ -277,11 +277,11 @@ async def crear_cbz_desde_fuente(codigo: str, tipo: str) -> str:
 defaultselectionmap = {}
 
 def cambiar_default_selection(userid, nuevaseleccion):
-    opcionesvalidas = [None, "pdf", "cbz", "both"]
+    opcionesvalidas = [None, "pdf", "cbz", "both", "pics"]
     if nuevaseleccion is not None:
         nuevaseleccion = nuevaseleccion.lower()
     if nuevaseleccion not in opcionesvalidas:
-        raise ValueError("Seleccion invalida: debe ser None, pdf, cbz o both")
+        raise ValueError("Seleccion invalida: debe ser None, pdf, cbz, both o pics")
     defaultselectionmap[userid] = nuevaseleccion
 
 async def descargarimagen_async(session, url, path):
@@ -324,9 +324,25 @@ def limpiarnombre(nombre: str) -> str:
     nombre = unicodedata.normalize('NFC', nombre)
     return re.sub(r'[^a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ ]', '', nombre)
 
+async def enviar_grupo_imagenes(client, chat_id, paths, caption, proteger, reply_to_message_id):
+    grupos = [paths[i:i + 10] for i in range(0, len(paths), 10)]
+    
+    for grupo in grupos:
+        media_grupo = []
+        for path in grupo:
+            media_grupo.append(InputMediaPhoto(media=path))
+        
+        if media_grupo:
+            await safe_call(client.send_media_group,
+                chat_id=chat_id,
+                media=media_grupo,
+                protect_content=proteger,
+                reply_to_message_id=reply_to_message_id
+            )
+
 async def nh_combined_operation(client, message, codigos, tipo, proteger, userid, operacion, int_lvl):
     seleccion = defaultselectionmap.get(userid, "cbz")
-    EXTENSIONES = {"cbz": ".cbz", "pdf": ".pdf", "both": ".cbz"}
+    EXTENSIONES = {"cbz": ".cbz", "pdf": ".pdf", "both": ".cbz", "pics": ""}
     extension = EXTENSIONES.get(seleccion, ".cbz")
     MAX_FILENAME_LEN = 63
 
@@ -457,6 +473,9 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                         archivos.append(pdfpath)
                 except Exception as e:
                     await safe_call(message.reply, f"❌ Error al generar PDF para {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
+
+            if seleccion == "pics":
+                await enviar_grupo_imagenes(client, message.chat.id, paths, texto_titulo, proteger, cover_message.id)
 
             for archivo in archivos:
                 await safe_call(client.send_document,
