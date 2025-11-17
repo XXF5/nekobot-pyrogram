@@ -261,7 +261,6 @@ def obtener_info_hitomi(codigo: str):
     except Exception as e:
         print(f"❌ Error obteniendo información de Hitomi: {str(e)}")
         return {"texto": "", "imagenes": [], "tags": {}}
-
 def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = None):
     try:
         datos = obtener_info_hitomi(entrada)
@@ -278,8 +277,9 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
         if not imagenes:
             return []
 
-        carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
-        os.makedirs(carpeta_temporal, exist_ok=True)
+        # NO crear carpeta temporal aquí - dejar que htools.py maneje la carpeta
+        carpeta_final = os.path.join(BASE_DIR, f"hitomi_{uuid.uuid4().hex}")
+        os.makedirs(carpeta_final, exist_ok=True)
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -301,15 +301,15 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
                 extension = '.webp'
             
             nombre_archivo = f"{idx+1:04d}{extension}"
-            ruta_destino = os.path.join(carpeta_temporal, nombre_archivo)
+            ruta_destino = os.path.join(carpeta_final, nombre_archivo)
             
             if descargar_imagen_con_reintentos(url, ruta_destino, headers):
                 paths_imagenes.append(ruta_destino)
             else:
                 print(f"❌ Error descargando imagen {idx+1}")
 
-        return paths_imagenes
+        return carpeta_final  # ← Cambio importante: retornar la carpeta, no los paths individuales
 
     except Exception as e:
         print(f"❌ Error fatal: {str(e)}")
-        return []
+        return ""
