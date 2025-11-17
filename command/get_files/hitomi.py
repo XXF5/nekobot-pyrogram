@@ -288,7 +288,6 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
             'Accept-Language': 'en-US,en;q=0.9',
         }
 
-        paths = []
         for idx, url in enumerate(imagenes):
             if '.webp' in url:
                 extension = '.webp'
@@ -302,9 +301,7 @@ def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = No
             nombre_archivo = f"{idx+1:04d}{extension}"
             ruta_destino = os.path.join(carpeta_temporal, nombre_archivo)
             
-            if descargar_imagen_con_reintentos(url, ruta_destino, headers):
-                paths.append(ruta_destino)
-            else:
+            if not descargar_imagen_con_reintentos(url, ruta_destino, headers):
                 print(f"❌ Error descargando imagen {idx+1}")
 
         return carpeta_temporal
