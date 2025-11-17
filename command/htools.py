@@ -19,6 +19,9 @@ from command.get_files.scrap_nh import scrape_nhentai_with_selenium
 
 from command.get_files.search_3h import scrape_3hentai_search
 
+# Añadir esta importación al principio del archivo
+from command.get_files.hitomi import obtener_info_hitomi, descargar_y_comprimir_hitomi
+
 async def api_search_3hentai(search_term, page=1):
     try:
         result_data = scrape_3hentai_search(search_term=search_term, page=page)
@@ -124,6 +127,7 @@ async def api_download_nhentai(codigo):
     except Exception as e:
         print(f"Error en descarga API: {e}")
         raise
+        
 async def send_nhentai_results(message, client, arg_text):
     try:
         parts = arg_text.split()
@@ -197,7 +201,6 @@ BASE_DIR = "vault_files/doujins"
 os.makedirs(BASE_DIR, exist_ok=True)
 
 async def crear_cbz_desde_fuente(codigo: str, tipo: str, inicio=None, fin=None) -> str:
-    from command.get_files.hitomi import descargar_y_comprimir_hitomi
     from command.get_files.nh_selenium import scrape_nhentai
     from command.get_files.h3_links import obtener_titulo_y_imagenes as obtener_info_y_links_h3
 
@@ -348,7 +351,6 @@ from command.get_files.h3_links import obtener_titulo_y_imagenes as obtener_info
 def obtenerporcli(codigo, tipo, cover):
     try:
         if tipo == "hito":
-            from command.get_files.hitomi import obtener_info_hitomi
             datos = obtener_info_hitomi(codigo)
             return datos
         elif tipo == "nh":
@@ -473,7 +475,6 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                 )
 
                 try:
-                    from command.get_files.hitomi import descargar_y_comprimir_hitomi
                     paths = descargar_y_comprimir_hitomi(codigo, inicio, fin)
                     
                     if not paths:
@@ -560,6 +561,7 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
             except Exception as e:
                 await safe_call(message.reply, f"❌ Error con Hitomi.la: {e}", reply_to_message_id=message.id)
             continue
+            
 async def nh_combined_operation_txt(client, message, tipo, proteger, userid, operacion, int_lvl):
     if not message.reply_to_message or not message.reply_to_message.document:
         await safe_call(message.reply, "❌ Debes responder a un archivo .txt", reply_to_message_id=message.id)
