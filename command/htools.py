@@ -388,168 +388,6 @@ async def enviar_grupo_imagenes(client, chat_id, paths, caption, proteger, reply
                 reply_to_message_id=reply_to_message_id
             )
 
-
-
-async def nh_combined_operation(client, message, codigos, tipo, proteger, userid, operacion, int_lvl):
-    seleccion = defaultselectionmap.get(userid, "cbz")
-    EXTENSIONES = {"cbz": ".cbz", "pdf": ".pdf", "both": ".cbz", "pics": ""}
-    extension = EXTENSIONES.get(seleccion, ".cbz")
-    MAX_FILENAME_LEN = 63
-
-    for codigo in codigos:
-        if tipo == "hito":
-            try:
-                inicio = None
-                fin = None
-                if ' ' in codigo:
-                    partes = codigo.split()
-                    if len(partes) >= 3 and partes[1].isdigit():
-                        inicio = int(partes[1])
-                        if len(partes) >= 4 and partes[2].isdigit():
-                            fin = int(partes[2])
-                
-                datos = obtenerporcli(codigo, tipo, cover=(operacion == "cover"))
-                texto_original = datos.get("texto", "").strip()
-                imagenes = datos.get("imagenes", [])
-                
-                if inicio is not None or fin is not None:
-                    if inicio is None:
-                        inicio = 1
-                    if fin is None:
-                        fin = len(imagenes)
-                    imagenes = imagenes[inicio-1:fin]
-                
-                if not imagenes:
-                    await safe_call(message.reply, f"❌ No se encontraron imágenes para {codigo}", reply_to_message_id=message.id)
-                    continue
-                    
-                tags = datos.get("tags", {})
-                texto_titulo = f"{codigo} {texto_original}"
-                nombrelimpio = limpiarnombre(texto_original)
-                nombrebase = f"{codigo} {nombrelimpio}" if nombrelimpio else f"{tipo} {codigo}"
-                nombrebase = nombrebase.strip()
-                max_nombre_len = MAX_FILENAME_LEN - len(extension)
-                if len(nombrebase) > max_nombre_len:
-                    nombrebase = nombrebase[:max_nombre_len].rstrip()
-
-                carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
-                os.makedirs(carpeta_temporal, exist_ok=True)
-
-                try:
-                    previewpath = os.path.join(carpeta_temporal, f"{nombrebase}_preview.jpg")
-                    async with aiohttp.ClientSession() as session:
-                        await descargarimagen_async(session, imagenes[0], previewpath)
-
-                    caption_lines = [f"{texto_titulo} Número de páginas: {len(imagenes)}"]
-                    
-                    if tags:
-                        caption_lines.append("\n🏷️ **Tags:**")
-                        for category, tag_list in tags.items():
-                            if tag_list:
-                                caption_lines.append(f"• **{category}:** {', '.join(tag_list)}")
-
-                    caption = "\n".join(caption_lines)
-
-                    cover_message = await safe_call(client.send_photo,
-                        chat_id=message.chat.id,
-                        photo=previewpath,
-                        caption=caption,
-                        protect_content=proteger,
-                        reply_to_message_id=message.id
-                    )
-                    os.remove(previewpath)
-
-                except Exception as e:
-                    await safe_call(message.reply, f"❌ No pude enviar la portada para {texto_titulo}: {e}", reply_to_message_id=message.id)
-                    shutil.rmtree(carpeta_temporal, ignore_errors=True)
-                    continue
-
-                if operacion == "cover":
-                    shutil.rmtree(carpeta_temporal, ignore_errors=True)
-                    continue
-
-                progresomsg = await safe_call(message.reply,
-                    f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes)} páginas)...\nProgreso 0/{len(imagenes)}",
-                    reply_to_message_id=message.id
-                )
-
-                try:
-                    # Obtener la carpeta con las imágenes descargadas
-                    carpeta_hitomi = descargar_y_comprimir_hitomi(codigo, inicio, fin)
-                    
-                    if not carpeta_hitomi or not os.path.exists(carpeta_hitomi):
-                        raise Exception("No se pudieron descargar las imágenes")
-
-                    # Obtener lista de archivos de imagen ordenados
-                    paths = []
-                    if os.path.exists(carpeta_hitomi):
-                        archivos = sorted([f for f in os.listdir(carpeta_hitomi) 
-                                         if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
-                        for archivo in archivos:
-                            paths.append(os.path.join(carpeta_hitomi, archivo))
-
-                    await progresomsg.edit_text(
-                        f"📦 Procesando imágenes para {texto_titulo} ({len(paths)} páginas)...\nProgreso {len(paths)}/{len(paths)}"
-                    )
-
-                    if int_lvl < 5 and paths:
-                        finalimage_path = os.path.join("command", "spam.png")
-                        finalpage_path = os.path.join(carpeta_hitomi, f"{len(paths)+1:03d}.png")
-                        shutil.copyfile(finalimage_path, finalpage_path)
-                        paths.append(finalpage_path)
-
-                    archivos = []
-
-                    if seleccion in ["cbz", "both"]:
-                        cbzbase = f"{nombrebase}"
-                        cbzpath = f"{cbzbase}.cbz"
-                        shutil.make_archive(cbzbase, 'zip', carpeta_hitomi)
-                        os.rename(f"{cbzbase}.zip", cbzpath)
-                        archivos.append(cbzpath)
-
-                    if seleccion in ["pdf", "both"] and paths:
-                        pdfpath = f"{nombrebase}.pdf"
-                        try:
-                            mainimages = []
-                            for path in paths:
-                                try:
-                                    with Image.open(path) as im:
-                                        mainimages.append(im.convert("RGB"))
-                                except Exception:
-                                    continue
-                            if mainimages:
-                                mainimages[0].save(pdfpath, save_all=True, append_images=mainimages[1:])
-                                archivos.append(pdfpath)
-                        except Exception as e:
-                            await safe_call(message.reply, f"❌ Error al generar PDF para {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
-
-                    if seleccion == "pics" and paths:
-                        await enviar_grupo_imagenes(client, message.chat.id, paths, texto_titulo, proteger, cover_message.id)
-
-                    for archivo in archivos:
-                        await safe_call(client.send_document,
-                            chat_id=message.chat.id,
-                            document=archivo,
-                            caption=texto_titulo,
-                            protect_content=proteger,
-                            reply_to_message_id=cover_message.id
-                        )
-                        os.remove(archivo)
-
-                except Exception as e:
-                    await safe_call(message.reply, f"❌ Error procesando {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
-                finally:
-                    # Limpiar carpetas temporales
-                    if 'carpeta_hitomi' in locals() and carpeta_hitomi and os.path.exists(carpeta_hitomi):
-                        shutil.rmtree(carpeta_hitomi, ignore_errors=True)
-                    if carpeta_temporal and os.path.exists(carpeta_temporal):
-                        shutil.rmtree(carpeta_temporal, ignore_errors=True)
-                    await safe_call(progresomsg.delete)
-                    
-            except Exception as e:
-                await safe_call(message.reply, f"❌ Error con Hitomi.la: {e}", reply_to_message_id=message.id)
-            continue
-
 async def nh_combined_operation_txt(client, message, tipo, proteger, userid, operacion, int_lvl):
     if not message.reply_to_message or not message.reply_to_message.document:
         await safe_call(message.reply, "❌ Debes responder a un archivo .txt", reply_to_message_id=message.id)
@@ -618,3 +456,165 @@ async def nh_combined_operation_txt(client, message, tipo, proteger, userid, ope
         else:            
             await safe_call(message.reply, "✅ Descarga terminada", reply_to_message_id=message.id)
             return
+
+
+async def nh_combined_operation(client, message, codigos, tipo, proteger, userid, operacion, int_lvl):
+    seleccion = defaultselectionmap.get(userid, "cbz")
+    EXTENSIONES = {"cbz": ".cbz", "pdf": ".pdf", "both": ".cbz", "pics": ""}
+    extension = EXTENSIONES.get(seleccion, ".cbz")
+    MAX_FILENAME_LEN = 63
+
+    for codigo in codigos:
+        if tipo == "hito":
+            try:
+                inicio = None
+                fin = None
+                if ' ' in codigo:
+                    partes = codigo.split()
+                    if len(partes) >= 3 and partes[1].isdigit():
+                        inicio = int(partes[1])
+                        if len(partes) >= 4 and partes[2].isdigit():
+                            fin = int(partes[2])
+                
+                datos = obtenerporcli(codigo, tipo, cover=(operacion == "cover"))
+                texto_original = datos.get("texto", "").strip()
+                imagenes = datos.get("imagenes", [])
+                
+                imagenes_filtradas = imagenes
+                if inicio is not None or fin is not None:
+                    if inicio is None:
+                        inicio = 1
+                    if fin is None:
+                        fin = len(imagenes)
+                    inicio_idx = inicio - 1
+                    fin_idx = fin
+                    imagenes_filtradas = imagenes[inicio_idx:fin_idx]
+                
+                if not imagenes_filtradas:
+                    await safe_call(message.reply, f"❌ No se encontraron imágenes para {codigo}", reply_to_message_id=message.id)
+                    continue
+                    
+                tags = datos.get("tags", {})
+                texto_titulo = f"{codigo} {texto_original}"
+                nombrelimpio = limpiarnombre(texto_original)
+                nombrebase = f"{codigo} {nombrelimpio}" if nombrelimpio else f"{tipo} {codigo}"
+                nombrebase = nombrebase.strip()
+                max_nombre_len = MAX_FILENAME_LEN - len(extension)
+                if len(nombrebase) > max_nombre_len:
+                    nombrebase = nombrebase[:max_nombre_len].rstrip()
+
+                carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
+                os.makedirs(carpeta_temporal, exist_ok=True)
+
+                try:
+                    previewpath = os.path.join(carpeta_temporal, f"{nombrebase}_preview.jpg")
+                    async with aiohttp.ClientSession() as session:
+                        await descargarimagen_async(session, imagenes_filtradas[0], previewpath)
+
+                    caption_lines = [f"{texto_titulo} Número de páginas: {len(imagenes_filtradas)}"]
+                    
+                    if tags:
+                        caption_lines.append("\n🏷️ **Tags:**")
+                        for category, tag_list in tags.items():
+                            if tag_list:
+                                caption_lines.append(f"• **{category}:** {', '.join(tag_list)}")
+
+                    caption = "\n".join(caption_lines)
+
+                    cover_message = await safe_call(client.send_photo,
+                        chat_id=message.chat.id,
+                        photo=previewpath,
+                        caption=caption,
+                        protect_content=proteger,
+                        reply_to_message_id=message.id
+                    )
+                    os.remove(previewpath)
+
+                except Exception as e:
+                    await safe_call(message.reply, f"❌ No pude enviar la portada para {texto_titulo}: {e}", reply_to_message_id=message.id)
+                    shutil.rmtree(carpeta_temporal, ignore_errors=True)
+                    continue
+
+                if operacion == "cover":
+                    shutil.rmtree(carpeta_temporal, ignore_errors=True)
+                    continue
+
+                progresomsg = await safe_call(message.reply,
+                    f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes_filtradas)} páginas)...\nProgreso 0/{len(imagenes_filtradas)}",
+                    reply_to_message_id=message.id
+                )
+
+                try:
+                    carpeta_hitomi = descargar_y_comprimir_hitomi(codigo, inicio, fin)
+                    
+                    if not carpeta_hitomi or not os.path.exists(carpeta_hitomi):
+                        raise Exception("No se pudieron descargar las imágenes")
+
+                    paths = []
+                    if os.path.exists(carpeta_hitomi):
+                        archivos = sorted([f for f in os.listdir(carpeta_hitomi) 
+                                         if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
+                        for archivo in archivos:
+                            paths.append(os.path.join(carpeta_hitomi, archivo))
+
+                    await progresomsg.edit_text(
+                        f"📦 Procesando imágenes para {texto_titulo} ({len(paths)} páginas)...\nProgreso {len(paths)}/{len(paths)}"
+                    )
+
+                    if int_lvl < 5 and paths:
+                        finalimage_path = os.path.join("command", "spam.png")
+                        finalpage_path = os.path.join(carpeta_hitomi, f"{len(paths)+1:03d}.png")
+                        shutil.copyfile(finalimage_path, finalpage_path)
+                        paths.append(finalpage_path)
+
+                    archivos = []
+
+                    if seleccion in ["cbz", "both"]:
+                        cbzbase = f"{nombrebase}"
+                        cbzpath = f"{cbzbase}.cbz"
+                        shutil.make_archive(cbzbase, 'zip', carpeta_hitomi)
+                        os.rename(f"{cbzbase}.zip", cbzpath)
+                        archivos.append(cbzpath)
+
+                    if seleccion in ["pdf", "both"] and paths:
+                        pdfpath = f"{nombrebase}.pdf"
+                        try:
+                            mainimages = []
+                            for path in paths:
+                                try:
+                                    with Image.open(path) as im:
+                                        mainimages.append(im.convert("RGB"))
+                                except Exception:
+                                    continue
+                            if mainimages:
+                                mainimages[0].save(pdfpath, save_all=True, append_images=mainimages[1:])
+                                archivos.append(pdfpath)
+                        except Exception as e:
+                            await safe_call(message.reply, f"❌ Error al generar PDF para {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
+
+                    if seleccion == "pics" and paths:
+                        await enviar_grupo_imagenes(client, message.chat.id, paths, texto_titulo, proteger, cover_message.id)
+
+                    for archivo in archivos:
+                        await safe_call(client.send_document,
+                            chat_id=message.chat.id,
+                            document=archivo,
+                            caption=texto_titulo,
+                            protect_content=proteger,
+                            reply_to_message_id=cover_message.id
+                        )
+                        os.remove(archivo)
+
+                except Exception as e:
+                    await safe_call(message.reply, f"❌ Error procesando {texto_titulo}: {e}", reply_to_message_id=cover_message.id)
+                finally:
+                    # Limpiar carpetas temporales
+                    if 'carpeta_hitomi' in locals() and carpeta_hitomi and os.path.exists(carpeta_hitomi):
+                        shutil.rmtree(carpeta_hitomi, ignore_errors=True)
+                    if carpeta_temporal and os.path.exists(carpeta_temporal):
+                        shutil.rmtree(carpeta_temporal, ignore_errors=True)
+                    await safe_call(progresomsg.delete)
+                    
+            except Exception as e:
+                await safe_call(message.reply, f"❌ Error con Hitomi.la: {e}", reply_to_message_id=message.id)
+            continue
