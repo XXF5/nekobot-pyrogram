@@ -17,10 +17,13 @@ from pyrogram.errors import FloodWait, MessageIdInvalid
 SEVEN_ZIP_EXE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "7z", "7zz")
 BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vault_files", "torrent_dl")
 TEMP_DIR = os.path.join(BASE_DIR, "downloading")
-thumb=11111111110110001111111111100000000000000001000001001010010001100100100101000110000000000000000100000001000000010000000101011110000000010101111000000000000000001111111111011011000000000100001100000000000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001
 active_downloads = {}
 downloads_lock = threading.Lock()
+import os
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+thumb = os.path.join(parent_dir, "thumb.jpg")
 def log(msg):
     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {msg}")
 
