@@ -17,7 +17,7 @@ from pyrogram.errors import FloodWait, MessageIdInvalid
 SEVEN_ZIP_EXE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "7z", "7zz")
 BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vault_files", "torrent_dl")
 TEMP_DIR = os.path.join(BASE_DIR, "downloading")
-
+thumb=11111111110110001111111111100000000000000001000001001010010001100100100101000110000000000000000100000001000000010000000101011110000000010101111000000000000000001111111111011011000000000100001100000000000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001
 active_downloads = {}
 downloads_lock = threading.Lock()
 
@@ -423,7 +423,7 @@ async def process_magnet_download_telegram(client, message, link, use_compressio
                         current_mb_sent = 0
                         part_size = os.path.getsize(full_path) / (1024 * 1024)
                         await safe_call(client.send_chat_action, chat_id, enums.ChatAction.UPLOAD_DOCUMENT)
-                        await safe_call(client.send_document, chat_id, document=full_path, progress=upload_progress)
+                        await safe_call(client.send_document, chat_id, document=full_path, progress=upload_progress, thumb=thumb)
                         sent_mb += part_size
                         sent_count += 1
                         try:
@@ -459,7 +459,7 @@ async def process_magnet_download_telegram(client, message, link, use_compressio
                                 current_mb_sent = 0
                                 part_size = os.path.getsize(part_file) / (1024 * 1024)
                                 await safe_call(client.send_chat_action, chat_id, enums.ChatAction.UPLOAD_DOCUMENT)
-                                await safe_call(client.send_document, chat_id, document=part_file, progress=upload_progress)
+                                await safe_call(client.send_document, chat_id, document=part_file, progress=upload_progress, thumb=thumb)
                                 sent_mb += part_size
                                 try:
                                     os.remove(part_file)
@@ -473,7 +473,7 @@ async def process_magnet_download_telegram(client, message, link, use_compressio
                         sent_count += 1
                     else:
                         await safe_call(client.send_chat_action, chat_id, enums.ChatAction.UPLOAD_DOCUMENT)
-                        await safe_call(client.send_document, chat_id, document=full_path, progress=upload_progress)
+                        await safe_call(client.send_document, chat_id, document=full_path, progress=upload_progress, thumb=thumb)
                         sent_mb += file_size_mb
                         sent_count += 1
                         try:
