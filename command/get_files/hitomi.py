@@ -2,6 +2,7 @@ import os
 import time
 import requests
 import hashlib
+import zipfile
 import re
 import uuid
 from selenium import webdriver
@@ -53,6 +54,9 @@ def obtener_titulo_y_autor(link_hitomi: str, chrome_path: str, driver_path: str)
         return "Titulo", "Autor"
     finally:
         driver.quit()
+
+def truncar_nombre(nombre: str, max_len: int = 100) -> str:
+    return (nombre[:max_len - 4] + "...") if len(nombre) > max_len else nombre + ".cbz"
 
 def procesar_id_o_enlace(entrada: str) -> tuple[str, str]:
     entrada_decodificada = unquote(entrada)
@@ -197,17 +201,33 @@ def obtener_url_imagen_pagina(driver, url_pagina, max_intentos=3):
                 time.sleep(tiempo_espera)
     return None
 
-def obtener_info_hitomi(codigo: str):
+def descargar_y_comprimir_hitomi(entrada: str) -> str:
     try:
-        link_hitomi, id_enlace = procesar_id_o_enlace(codigo)
+        link_hitomi, id_enlace = procesar_id_o_enlace(entrada)
         
         chrome_path = "selenium/chrome-linux64/chrome"
         driver_path = "selenium/chromedriver-linux64/chromedriver"
 
-        titulo, autor = obtener_titulo_y_autor(codigo, chrome_path, driver_path)
-        
+        titulo, autor = obtener_titulo_y_autor(entrada, chrome_path, driver_path)
+
         nombre_final = f"{autor} - {titulo}".strip()
         nombre_final = limpiar_nombre(nombre_final)
+        nombre_cbz = truncar_nombre(nombre_final)
+
+        os.makedirs(BASE_DIR, exist_ok=True)
+        carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
+        os.makedirs(carpeta_temporal, exist_ok=True)
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://hitomi.la/',
+            'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+
+        def calcular_hash_imagen(ruta):
+            with open(ruta, 'rb') as f:
+                return hashlib.md5(f.read()).hexdigest()
 
         options = Options()
         options.binary_location = chrome_path
@@ -224,14 +244,13 @@ def obtener_info_hitomi(codigo: str):
         driver = webdriver.Chrome(service=service, options=options)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-        urls_imagenes = []
-        contador = 1
-        max_paginas = float('inf')
+        hashes = {}
         duplicados_consecutivos = 0
+        contador = 1
         max_duplicados_consecutivos = 10
-        urls_vistas = set()
+        imagenes_descargadas = 0
 
-        while duplicados_consecutivos < max_duplicados_consecutivos and contador <= max_paginas:
+        while duplicados_consecutivos < max_duplicados_consecutivos:
             url_pagina = f"https://hitomi.la/reader/{id_enlace}.html#{contador}"
             
             img_url = obtener_url_imagen_pagina(driver, url_pagina)
@@ -240,75 +259,58 @@ def obtener_info_hitomi(codigo: str):
                 contador += 1
                 continue
             
-            if img_url not in urls_vistas:
-                urls_vistas.add(img_url)
-                urls_imagenes.append(img_url)
-                duplicados_consecutivos = 0
-            else:
-                duplicados_consecutivos += 1
-            
-            contador += 1
-            time.sleep(0.5)
-
-        driver.quit()
-
-        return {
-            "texto": nombre_final,
-            "imagenes": urls_imagenes,
-            "tags": {}
-        }
-
-    except Exception as e:
-        print(f"❌ Error obteniendo información de Hitomi: {str(e)}")
-        return {"texto": "", "imagenes": [], "tags": {}}
-
-def descargar_y_comprimir_hitomi(entrada: str, inicio: int = None, fin: int = None):
-    try:
-        datos = obtener_info_hitomi(entrada)
-        texto_original = datos.get("texto", "").strip()
-        imagenes = datos.get("imagenes", [])
-        
-        if inicio is not None or fin is not None:
-            if inicio is None:
-                inicio = 1
-            if fin is None:
-                fin = len(imagenes)
-                
-            inicio_idx = inicio - 1
-            fin_idx = fin
-            imagenes = imagenes[inicio_idx:fin_idx]
-        
-        if not imagenes:
-            return ""
-
-        nombre_carpeta = f"hitomi_{uuid.uuid4().hex}"
-        carpeta_final = os.path.join(BASE_DIR, nombre_carpeta)
-        os.makedirs(carpeta_final, exist_ok=True)
-
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://hitomi.la/',
-            'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-        }
-
-        for idx, url in enumerate(imagenes):
-            if '.webp' in url:
+            if '.webp' in img_url:
                 extension = '.webp'
-            elif '.jpg' in url or '.jpeg' in url:
+            elif '.jpg' in img_url or '.jpeg' in img_url:
                 extension = '.jpg'
-            elif '.png' in url:
+            elif '.png' in img_url:
                 extension = '.png'
             else:
                 extension = '.webp'
             
-            nombre_archivo = f"{idx+1:04d}{extension}"
-            ruta_destino = os.path.join(carpeta_final, nombre_archivo)
-            
-            if not descargar_imagen_con_reintentos(url, ruta_destino, headers):
-                print(f"❌ Error descargando imagen {idx+1}")
+            nombre_archivo = f"{contador:04d}{extension}"
+            ruta_destino = os.path.join(carpeta_temporal, nombre_archivo)
 
-        return nombre_carpeta  
+            if descargar_imagen_con_reintentos(img_url, ruta_destino, headers):
+                if os.path.exists(ruta_destino) and os.path.getsize(ruta_destino) > 0:
+                    hash_actual = calcular_hash_imagen(ruta_destino)
+                    if hash_actual in hashes.values():
+                        duplicados_consecutivos += 1
+                        os.remove(ruta_destino)
+                        if duplicados_consecutivos >= max_duplicados_consecutivos:
+                            break
+                    else:
+                        hashes[nombre_archivo] = hash_actual
+                        duplicados_consecutivos = 0
+                        imagenes_descargadas += 1
+                else:
+                    duplicados_consecutivos += 1
+            else:
+                duplicados_consecutivos += 1
+            
+            contador += 1
+            time.sleep(1)
+
+        driver.quit()
+
+        archivos_descargados = [f for f in os.listdir(carpeta_temporal) if os.path.isfile(os.path.join(carpeta_temporal, f))]
+        if not archivos_descargados:
+            os.rmdir(carpeta_temporal)
+            return ""
+
+        ruta_cbz = os.path.join(BASE_DIR, nombre_cbz)
+        with zipfile.ZipFile(ruta_cbz, 'w', zipfile.ZIP_DEFLATED) as cbz:
+            for file in sorted(archivos_descargados):
+                ruta_completa = os.path.join(carpeta_temporal, file)
+                arcname = os.path.join(nombre_final, file)
+                cbz.write(ruta_completa, arcname=arcname)
+
+        for file in archivos_descargados:
+            os.remove(os.path.join(carpeta_temporal, file))
+        os.rmdir(carpeta_temporal)
+
+        return ruta_cbz
+
     except Exception as e:
         print(f"❌ Error fatal: {str(e)}")
         return ""
