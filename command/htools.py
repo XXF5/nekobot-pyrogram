@@ -296,6 +296,27 @@ async def descargarimagen_async(session, url, path):
         await asyncio.sleep(2)
         await descargarimagen_async(session, url, path)
 
+async def descargar_imagen_con_extensiones_alternativas(session, base_url, path, referer):
+    extensiones = ['.jpg', '.png', '.webp', '.jpeg']
+    
+    for ext in extensiones:
+        try:
+            url = base_url + ext
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": referer
+            }
+            async with session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    content = await resp.read()
+                    with open(path, 'wb') as f:
+                        f.write(content)
+                    return True
+        except Exception:
+            continue
+    
+    return False
+
 from command.get_files.nh_selenium import scrape_nhentai
 from command.get_files.h3_links import obtener_titulo_y_imagenes as obtener_info_y_links_h3
 
@@ -308,6 +329,19 @@ def obtenerporcli(codigo, tipo, cover):
             title = result["title"]
             imagenes = result["links"]
             tags = result["tags"]
+            
+            if imagenes:
+                base_url_pattern = re.search(r'(https://i\d+\.nhentai\.net/galleries/\d+/)', imagenes[0])
+                if base_url_pattern:
+                    base_url = base_url_pattern.group(1)
+                    total_pages = len(imagenes)
+                    
+                    nuevas_imagenes = []
+                    for i in range(1, total_pages + 1):
+                        nuevas_imagenes.append(f"{base_url}{i}.jpg")
+                    
+                    imagenes = nuevas_imagenes
+            
             datos = {"texto": title, "imagenes": imagenes, "tags": tags}
         else:
             datos = obtener_info_y_links_h3(codigo, cover=cover)
@@ -388,8 +422,24 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
 
         try:
             previewpath = os.path.join(carpeta_temporal, f"{nombrebase}_preview.jpg")
-            async with aiohttp.ClientSession() as session:
-                await descargarimagen_async(session, imagenes[0], previewpath)
+            
+            if tipo == "nh":
+                base_url_pattern = re.search(r'(https://i\d+\.nhentai\.net/galleries/\d+/)', imagenes[0])
+                if base_url_pattern:
+                    base_url = base_url_pattern.group(1)
+                    referer = "https://nhentai.net/"
+                    success = await descargar_imagen_con_extensiones_alternativas(
+                        aiohttp.ClientSession(), base_url + "1", previewpath, referer
+                    )
+                    if not success:
+                        async with aiohttp.ClientSession() as session:
+                            await descargarimagen_async(session, imagenes[0], previewpath)
+                else:
+                    async with aiohttp.ClientSession() as session:
+                        await descargarimagen_async(session, imagenes[0], previewpath)
+            else:
+                async with aiohttp.ClientSession() as session:
+                    await descargarimagen_async(session, imagenes[0], previewpath)
 
             caption_lines = [f"{texto_titulo} Número de páginas: {len(imagenes)}"]
             
@@ -428,19 +478,48 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
             paths = []
             async with aiohttp.ClientSession() as session:
                 tasks = []
-                for idx, url in enumerate(imagenes):
-                    ext = os.path.splitext(url)[1].lower()
-                    if ext not in [".jpg", ".jpeg", ".png"]:
-                        ext = ".jpg"
-                    path = os.path.join(carpeta_temporal, f"{idx+1:03d}{ext}")
-                    tasks.append(descargarimagen_async(session, url, path))
-                    paths.append(path)
                 
-                for i, task in enumerate(asyncio.as_completed(tasks)):
-                    await task
-                    if (i + 1) % 5 == 0 or i + 1 == len(tasks):
+                if tipo == "nh" and imagenes:
+                    base_url_pattern = re.search(r'(https://i\d+\.nhentai\.net/galleries/\d+/)', imagenes[0])
+                    if base_url_pattern:
+                        base_url = base_url_pattern.group(1)
+                        referer = "https://nhentai.net/"
+                        
+                        for idx in range(len(imagenes)):
+                            page_num = idx + 1
+                            path = os.path.join(carpeta_temporal, f"{page_num:03d}.jpg")
+                            task = asyncio.create_task(
+                                descargar_imagen_con_extensiones_alternativas(
+                                    session, base_url + str(page_num), path, referer
+                                )
+                            )
+                            tasks.append((task, path))
+                    else:
+                        for idx, url in enumerate(imagenes):
+                            ext = os.path.splitext(url)[1].lower()
+                            if ext not in [".jpg", ".jpeg", ".png"]:
+                                ext = ".jpg"
+                            path = os.path.join(carpeta_temporal, f"{idx+1:03d}{ext}")
+                            task = asyncio.create_task(descargarimagen_async(session, url, path))
+                            tasks.append((task, path))
+                else:
+                    for idx, url in enumerate(imagenes):
+                        ext = os.path.splitext(url)[1].lower()
+                        if ext not in [".jpg", ".jpeg", ".png"]:
+                            ext = ".jpg"
+                        path = os.path.join(carpeta_temporal, f"{idx+1:03d}{ext}")
+                        task = asyncio.create_task(descargarimagen_async(session, url, path))
+                        tasks.append((task, path))
+                
+                completed = 0
+                for task, path in tasks:
+                    success = await task
+                    if success:
+                        paths.append(path)
+                    completed += 1
+                    if completed % 5 == 0 or completed == len(tasks):
                         await progresomsg.edit_text(
-                            f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes)} páginas)...\nProgreso {i+1}/{len(imagenes)}"
+                            f"📦 Procesando imágenes para {texto_titulo} ({len(imagenes)} páginas)...\nProgreso {completed}/{len(imagenes)}"
                         )
 
             if int_lvl < 5:
