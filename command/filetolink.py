@@ -10,6 +10,10 @@ from pyrogram import Client, enums
 from pyrogram.types import Message
 from pyrogram.errors import FloodWait
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+thumb = os.path.join(parent_dir, "thumb.jpg")
+
 VAULT_FOLDER = "vault_files"
 SEVEN_ZIP_EXE = os.path.join("7z", "7zz")
 MAX_SIZE_MB = 2000
@@ -249,6 +253,8 @@ async def send_vault_file_by_index(client, message):
             mode = "named_compress"
         elif flag == "-d":
             delete_after = True
+        elif flag == "-m":
+            mode = "with_thumb"
 
     non_flags = [arg for arg in args if not arg.startswith("-")]
     index_str = non_flags[1] if len(non_flags) > 1 else non_flags[0]
@@ -386,7 +392,7 @@ async def send_vault_file_by_index(client, message):
                         current_mb_sent = 0
 
                         await safe_call(client.send_chat_action, message.chat.id, enums.ChatAction.UPLOAD_DOCUMENT)
-                        await safe_call(client.send_document, message.chat.id, document=part_path, caption=f"📦 {part}", progress=progress)
+                        await safe_call(client.send_document, message.chat.id, document=part_path, caption=f"📦 {part}", progress=progress, thumb=thumb)
                         await safe_call(client.send_chat_action, message.chat.id, enums.ChatAction.CANCEL)
 
                         sent_mb += part_size
@@ -395,10 +401,13 @@ async def send_vault_file_by_index(client, message):
                 else:
                     await safe_call(client.send_chat_action, message.chat.id, enums.ChatAction.UPLOAD_DOCUMENT)
 
-                    if mime_main == "image":
+                    if mime_main == "image" and not filename.lower().endswith(".webp"):
                         await safe_call(client.send_photo, message.chat.id, photo=path, caption=f"🖼️ {os.path.basename(path)}", progress=progress)
                     else:
-                        await safe_call(client.send_document, message.chat.id, document=path, caption=f"📤 {os.path.basename(path)}", progress=progress)
+                        if mode == "with_thumb" and os.path.exists(thumb):
+                            await safe_call(client.send_document, message.chat.id, document=path, caption=f"📤 {os.path.basename(path)}", progress=progress, thumb=thumb)
+                        else:
+                            await safe_call(client.send_document, message.chat.id, document=path, caption=f"📤 {os.path.basename(path)}", progress=progress)
 
                     await safe_call(client.send_chat_action, message.chat.id, enums.ChatAction.CANCEL)
                     sent_mb += size_mb
