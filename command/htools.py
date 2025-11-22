@@ -373,7 +373,7 @@ async def enviar_grupo_imagenes(client, chat_id, paths, caption, proteger, reply
                 protect_content=proteger,
                 reply_to_message_id=reply_to_message_id
             )
-
+            
 async def nh_combined_operation(client, message, codigos, tipo, proteger, userid, operacion, int_lvl):
     seleccion = defaultselectionmap.get(userid, "cbz")
     EXTENSIONES = {"cbz": ".cbz", "pdf": ".pdf", "both": ".cbz", "pics": ""}
@@ -386,15 +386,65 @@ async def nh_combined_operation(client, message, codigos, tipo, proteger, userid
                 cbz_path = await crear_cbz_desde_fuente(codigo, tipo)
                 texto_titulo = os.path.basename(cbz_path).replace('.cbz', '')
                 
-                await safe_call(client.send_document,
-                    chat_id=message.chat.id,
-                    document=cbz_path,
-                    caption=texto_titulo,
-                    protect_content=proteger,
-                    reply_to_message_id=message.id
-                )
+                if seleccion == "cbz" or seleccion == "both":
+                    await safe_call(client.send_document,
+                        chat_id=message.chat.id,
+                        document=cbz_path,
+                        caption=texto_titulo,
+                        protect_content=proteger,
+                        reply_to_message_id=message.id
+                    )
+                
+                if seleccion == "pdf" or seleccion == "both" or seleccion == "pics":
+                    carpeta_temporal = os.path.join(BASE_DIR, str(uuid.uuid4()))
+                    os.makedirs(carpeta_temporal, exist_ok=True)
+                    
+                    try:
+                        with zipfile.ZipFile(cbz_path, 'r') as zip_ref:
+                            zip_ref.extractall(carpeta_temporal)
+                        
+                        paths = []
+                        for root, dirs, files in os.walk(carpeta_temporal):
+                            for file in sorted(files):
+                                if file.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                                    paths.append(os.path.join(root, file))
+                        
+                        paths.sort()
+                        
+                        if seleccion == "pdf" or seleccion == "both":
+                            pdfpath = f"{texto_titulo}.pdf"
+                            try:
+                                mainimages = []
+                                for path in paths:
+                                    try:
+                                        with Image.open(path) as im:
+                                            if im.mode != 'RGB':
+                                                im = im.convert('RGB')
+                                            mainimages.append(im)
+                                    except Exception:
+                                        continue
+                                if mainimages:
+                                    mainimages[0].save(pdfpath, save_all=True, append_images=mainimages[1:])
+                                    await safe_call(client.send_document,
+                                        chat_id=message.chat.id,
+                                        document=pdfpath,
+                                        caption=texto_titulo,
+                                        protect_content=proteger,
+                                        reply_to_message_id=message.id
+                                    )
+                                    os.remove(pdfpath)
+                            except Exception as e:
+                                await safe_call(message.reply, f"❌ Error al generar PDF para {texto_titulo}: {e}", reply_to_message_id=message.id)
+                        
+                        if seleccion == "pics":
+                            await enviar_grupo_imagenes(client, message.chat.id, paths, texto_titulo, proteger, message.id)
+                    
+                    finally:
+                        shutil.rmtree(carpeta_temporal, ignore_errors=True)
+                
                 os.remove(cbz_path)
                 continue
+                
             except Exception as e:
                 await safe_call(message.reply, f"❌ Error con Hitomi.la: {e}", reply_to_message_id=message.id)
                 continue
