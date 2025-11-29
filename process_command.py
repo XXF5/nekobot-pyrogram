@@ -109,16 +109,16 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
         from command.help import handle_help
         await asyncio.create_task(handle_help(client, message))
 
-    elif command in ("/magnet", "/nyaa", "/nyaa18"):
+    elif command in ("/magnet", "/nyaa", "/nyaa18", "/sethumb"):
         if command == "/magnet":
             if cmd("torrent", int_lvl):
                 from command.torrets_tools import process_magnet_download_telegram
                 reply = message.reply_to_message
                 parts = text.strip().split(maxsplit=2)
-            
+
                 link = None
                 use_compression = False
-                
+
                 if reply and (reply.text or reply.caption):
                     text_reply = reply.text or reply.caption
                     magnet_match = re.search(r'magnet:\?[^\s]+', text_reply)
@@ -127,10 +127,10 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                         link = magnet_match.group(0)
                     elif torrent_match:
                         link = torrent_match.group(0)
-            
+
                 if not link:
                     if len(parts) < 2:
-                        await message.reply("❗ Debes proporcionar un enlace magnet or .torrent.")
+                        await message.reply("❗ Debes proporcionar un enlace magnet o .torrent.")
                         return
 
                     if parts[1] == "-z":
@@ -141,10 +141,10 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                         arg_text = parts[2]
                     else:
                         arg_text = parts[1]
-                
+
                     magnet_match = re.search(r'magnet:\?[^\s]+', arg_text)
                     torrent_match = re.search(r'https?://[^\s]+\.torrent', arg_text)
-                
+
                     if magnet_match:
                         link = magnet_match.group(0)
                     elif torrent_match:
@@ -155,27 +155,47 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
 
                 await process_magnet_download_telegram(client, message, link, use_compression)
 
+        elif command == "/sethumb":
+            if int_lvl >= 4:
+                reply = message.reply_to_message
+                if reply and (reply.photo or (reply.document and reply.document.mime_type.startswith("image/"))):
+                    
+                    thumb_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "thumb.jpg")
+                    if os.path.exists(thumb_path):
+                        os.remove(thumb_path)
+
+                    
+                    new_thumb_path = await client.download_media(reply, file_name=thumb_path)
+                    if new_thumb_path:
+                        await message.reply("✅ Miniatura actualizada correctamente.")
+                    else:
+                        await message.reply("❌ Error al descargar la miniatura.")
+                else:
+                    await message.reply("❗ Responde a una foto o archivo de imagen para establecer como miniatura.")
+
         elif command == "/nyaa":
             if cmd("torrent", int_lvl):
                 parts = text.strip().split(maxsplit=1)
                 if len(parts) < 2:
                     await message.reply("❗ Debes proporcionar un término de búsqueda después de /nyaa.")
                     return
-                
+
                 search_query = parts[1]
                 from command.torrets_tools import search_in_nyaa
                 await search_in_nyaa(client, message, search_query)
+
         elif command == "/nyaa18":
             if cmd("torrent", int_lvl):
                 parts = text.strip().split(maxsplit=1)
                 if len(parts) < 2:
                     await message.reply("❗ Debes proporcionar un término de búsqueda después de /nyaa18.")
                     return
-                
+
                 search_query = parts[1]
                 from command.torrets_tools import search_in_sukebei
                 await search_in_sukebei(client, message, search_query)
-                
+
+    
     elif command in ("/searchnh", "/search3h", "/nh", "/3h", "/cover3h", "/covernh", "/setfile", "/nhtxt", "/3htxt", "/dltxt", "/hito"):
         if cmd("htools", int_lvl):
             from command.htools import nh_combined_operation, nh_combined_operation_txt, cambiar_default_selection
