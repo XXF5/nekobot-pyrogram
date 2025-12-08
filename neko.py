@@ -80,7 +80,7 @@ def restart_flask():
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
         
-@app.on_message()
+@app.on_message(filters.text)
 async def handle_message(client, message):
     global cmd_list_initialized, bot_is_sleeping, start_sleep_time, sleep_duration
 
