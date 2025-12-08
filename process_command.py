@@ -574,6 +574,27 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
         from command.admintools import send_access_editor
         await send_access_editor(client, message)
 
+    elif command in ("/imgchest", "/imgup"):
+        if cmd("imgtools", int_lvl):
+            if not message.reply_to_message:
+                await message.reply("❌ **Use el comando respondiendo a una imagen o archivo de imagen**")
+                return
+            
+            reply = message.reply_to_message
+            if not (reply.photo or (reply.document and reply.document.mime_type and 
+                     reply.document.mime_type.startswith("image/"))):
+                await message.reply("❌ **Debes responder a una imagen o archivo de imagen**")
+                return
+            
+            try:
+                from command.imgtools import create_imgchest_post
+                await create_imgchest_post(client, message)
+            except ImportError:
+                await handle_imgchest_inline(client, message)
+        else:
+            await message.reply("⚠️ No tienes permiso para usar este comando.")
+                    
+
     elif command == "/manga":
         if cmd("manga", int_lvl):
             from command.mangatools import handle_manga_search
