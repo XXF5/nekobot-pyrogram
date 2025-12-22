@@ -21,6 +21,7 @@ import requests
 from io import BytesIO
 from command.hapi.h3 import create_3hentai_cbz, serve_and_clean
 from command.get_files.scrap_nh import scrape_nhentai_with_selenium
+
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() 
             for text in re.split(r'(\d+)', s)]
@@ -35,7 +36,9 @@ fernet_key = base64.urlsafe_b64encode(hashlib.sha256(TOKEN_KEY.encode()).digest(
 cipher_suite = Fernet(fernet_key)
 
 doujin_downloads = {}
+mega_downloads = {}
 doujin_lock = Lock()
+mega_lock = Lock()
 
 def encrypt_token(data):
     json_data = json.dumps(data)
@@ -300,16 +303,28 @@ def downloads_page():
         for download_id in to_delete:
             del doujin_downloads[download_id]
     
+    with mega_lock:
+        to_delete = []
+        for download_id, download_info in mega_downloads.items():
+            if download_info.get("state") == "completed" and "end_time" in download_info:
+                end_time = datetime.fromisoformat(download_info["end_time"])
+                if (current_time - end_time).total_seconds() > 3600:
+                    to_delete.append(download_id)
+        
+        for download_id in to_delete:
+            del mega_downloads[download_id]
+    
     return render_template_string(DOWNLOADS_TEMPLATE, 
                                 downloads=downloads, 
-                                doujin_downloads=doujin_downloads)
+                                doujin_downloads=doujin_downloads,
+                                mega_downloads=mega_downloads)
 
 @explorer.route("/api/downloads", methods=["GET", "POST"])
 @login_required
 def api_downloads():
     cleanup_old_downloads()
     downloads = get_download_progress()
-    return jsonify({"torrents": downloads, "doujins": doujin_downloads})
+    return jsonify({"torrents": downloads, "doujins": doujin_downloads, "mega": mega_downloads})
 
 @explorer.route("/download", methods=["GET", "POST"])
 #@login_required
@@ -486,6 +501,83 @@ def handle_magnet():
         return redirect("/downloads")
     except Exception as e:
         return f"<h3>Error al iniciar descarga: {e}</h3>", 500
+
+@explorer.route("/mega", methods=["GET", "POST"])
+@login_required
+def handle_mega():
+    if request.method == "POST":
+        mega_link = request.form.get("mega_link", "").strip()
+    else:
+        mega_link = request.args.get("mega_link", "").strip()
+        
+    if not mega_link or not mega_link.startswith("https://mega.nz/"):
+        return "<h3>❌ Enlace MEGA no válido.</h3>", 400
+
+    download_id = str(uuid.uuid4())
+    
+    with mega_lock:
+        mega_downloads[download_id] = {
+            "state": "processing",
+            "link": mega_link,
+            "progress": 0,
+            "start_time": datetime.now().isoformat(),
+            "message": "Iniciando descarga..."
+        }
+    
+    def run_mega_download():
+        try:
+            desmega_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "command", "desmega")
+            output_dir = os.path.join(BASE_DIR, "mega_dl", download_id)
+            os.makedirs(output_dir, exist_ok=True)
+            
+            with mega_lock:
+                mega_downloads[download_id]["output_dir"] = output_dir
+                mega_downloads[download_id]["message"] = "Ejecutando desmega..."
+                mega_downloads[download_id]["progress"] = 10
+            
+            process = subprocess.Popen(
+                [desmega_path, mega_link, "--path", output_dir],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            
+            stdout, stderr = process.communicate()
+            
+            with mega_lock:
+                mega_downloads[download_id]["progress"] = 90
+                mega_downloads[download_id]["message"] = "Procesando archivos descargados..."
+            
+            if process.returncode != 0:
+                with mega_lock:
+                    mega_downloads[download_id]["state"] = "error"
+                    mega_downloads[download_id]["error"] = stderr
+                return
+            
+            files = [f for f in os.listdir(output_dir) if not f.startswith('.megatmp')]
+            if not files:
+                with mega_lock:
+                    mega_downloads[download_id]["state"] = "error"
+                    mega_downloads[download_id]["error"] = "No se encontraron archivos descargados"
+                return
+            
+            with mega_lock:
+                mega_downloads[download_id]["state"] = "completed"
+                mega_downloads[download_id]["end_time"] = datetime.now().isoformat()
+                mega_downloads[download_id]["progress"] = 100
+                mega_downloads[download_id]["message"] = f"Descarga completada. {len(files)} archivos descargados en: {output_dir}"
+            
+        except Exception as e:
+            with mega_lock:
+                mega_downloads[download_id]["state"] = "error"
+                mega_downloads[download_id]["error"] = str(e)
+    
+    Thread(target=run_mega_download, daemon=True).start()
+    
+    response_msg = "<h3>✅ Iniciando descarga desde MEGA</h3>"
+    response_msg += f"<p>Enlace: {mega_link[:50]}...</p>"
+    response_msg += "<p>Puedes ver el progreso en la <a href='/downloads'>página de descargas</a></p>"
+    return response_msg
 
 @explorer.route("/delete", methods=["GET", "POST"])
 @login_required
@@ -746,7 +838,7 @@ def view_nhentai(code):
             return "<h3>❌ No se pudo obtener la información de la galería</h3>", 404
         
         import re
-        clean_title = re.sub(r'[<>:"/\\|?*]', '', result["title"])[:100]  # Limitar longitud
+        clean_title = re.sub(r'[<>:"/\\|?*]', '', result["title"])[:100]
         
         return render_template_string(VIEW_NH_TEMPLATE, 
                                     code=code,
@@ -858,6 +950,7 @@ def api_create_cbz():
         
     except Exception as e:
         return jsonify({"error": f"Error al crear CBZ: {str(e)}"}), 500
+
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
 def rename_item():
@@ -886,9 +979,8 @@ def rename_item():
 @explorer.route("/help", methods=["GET"])
 def help_page():
     base_url = request.host_url.rstrip('/')
-    help_text = f"# Guía de uso con CURL\n\n## Autenticación\nPrimero genera un token de autenticación:\ncurl \"{base_url}/auth?u=TU_USUARIO&p=TU_CONTRASEÑA\"\n\nO usa autenticación básica en cada request:\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Listar archivos recursivamente\ncurl \"{base_url}/files?token=TU_TOKEN\"\n# o\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Descargar archivo\ncurl \"{base_url}/download?path=ruta/archivo.jpg&token=TU_TOKEN\" \\\n  -o \"archivo.jpg\"\n\n## Descargar desde 3Hentai (descarga directa)\ncurl \"{base_url}/api/d3h/CODIGO?token=TU_TOKEN\" \\\n  -o \"archivo.cbz\"\n\n## Crear CBZ desde códigos\n\n### Un solo código (nhentai, hentai3, hitomi)\n# nhentai\ncurl \"{base_url}/crear_cbz?codigo=177013&tipo=nh&token=TU_TOKEN\"\n\n# hentai3\ncurl \"{base_url}/crear_cbz?codigo=12345&tipo=h3&token=TU_TOKEN\"\n\n# hitomi\ncurl \"{base_url}/crear_cbz?codigo=abc123&tipo=hito&token=TU_TOKEN\"\n\n### Múltiples códigos (solo nhentai y hentai3)\n# nhentai múltiple\ncurl \"{base_url}/crear_cbz?codigo=177013,228922,309437&tipo=nh&token=TU_TOKEN\"\n\n# hentai3 múltiple\ncurl \"{base_url}/crear_cbz?codigo=12345,67890,54321&tipo=h3&token=TU_TOKEN\"\n\n## Descargar desde magnet link\ncurl \"{base_url}/magnet?magnet=magnet:?xt=urn:btih:TU_HASH&token=TU_TOKEN\"\n\n## Renombrar archivo/directorio\ncurl \"{base_url}/rename?old_path=ruta/vieja/archivo.txt&new_name=archivo_nuevo.txt&token=TU_TOKEN\"\n\n## Eliminar archivo/directorio\ncurl \"{base_url}/delete?path=ruta/a/eliminar&token=TU_TOKEN\"\n\n## Subir archivo (requiere POST)\ncurl -X POST \"{base_url}/upload?token=TU_TOKEN\" \\\n  -F \"file=@archivo_local.jpg\"\n\n## Notas:\n- Reemplaza `TU_TOKEN` con el token obtenido del endpoint `/auth`\n- Reemplaza `TU_USUARIO` y `TU_CONTRASEÑA` con tus credenciales\n- Las rutas deben estar dentro del directorio base permitido\n- Para hitomi solo se permite un código a la vez"
+    help_text = f"# Guía de uso con CURL\n\n## Autenticación\nPrimero genera un token de autenticación:\ncurl \"{base_url}/auth?u=TU_USUARIO&p=TU_CONTRASEÑA\"\n\nO usa autenticación básica en cada request:\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Listar archivos recursivamente\ncurl \"{base_url}/files?token=TU_TOKEN\"\n# o\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Descargar archivo\ncurl \"{base_url}/download?path=ruta/archivo.jpg&token=TU_TOKEN\" \\\n  -o \"archivo.jpg\"\n\n## Descargar desde 3Hentai (descarga directa)\ncurl \"{base_url}/api/d3h/CODIGO?token=TU_TOKEN\" \\\n  -o \"archivo.cbz\"\n\n## Crear CBZ desde códigos\n\n### Un solo código (nhentai, hentai3, hitomi)\n# nhentai\ncurl \"{base_url}/crear_cbz?codigo=177013&tipo=nh&token=TU_TOKEN\"\n\n# hentai3\ncurl \"{base_url}/crear_cbz?codigo=12345&tipo=h3&token=TU_TOKEN\"\n\n# hitomi\ncurl \"{base_url}/crear_cbz?codigo=abc123&tipo=hito&token=TU_TOKEN\"\n\n### Múltiples códigos (solo nhentai y hentai3)\n# nhentai múltiple\ncurl \"{base_url}/crear_cbz?codigo=177013,228922,309437&tipo=nh&token=TU_TOKEN\"\n\n# hentai3 múltiple\ncurl \"{base_url}/crear_cbz?codigo=12345,67890,54321&tipo=h3&token=TU_TOKEN\"\n\n## Descargar desde magnet link\ncurl \"{base_url}/magnet?magnet=magnet:?xt=urn:btih:TU_HASH&token=TU_TOKEN\"\n\n## Descargar desde MEGA\ncurl \"{base_url}/mega?mega_link=https://mega.nz/...&token=TU_TOKEN\"\n\n## Renombrar archivo/directorio\ncurl \"{base_url}/rename?old_path=ruta/vieja/archivo.txt&new_name=archivo_nuevo.txt&token=TU_TOKEN\"\n\n## Eliminar archivo/directorio\ncurl \"{base_url}/delete?path=ruta/a/eliminar&token=TU_TOKEN\"\n\n## Subir archivo (requiere POST)\ncurl -X POST \"{base_url}/upload?token=TU_TOKEN\" \\\n  -F \"file=@archivo_local.jpg\"\n\n## Notas:\n- Reemplaza `TU_TOKEN` con el token obtenido del endpoint `/auth`\n- Reemplaza `TU_USUARIO` y `TU_CONTRASEÑA` con tus credenciales\n- Las rutas deben estar dentro del directorio base permitido\n- Para hitomi solo se permite un código a la vez"
     return help_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
-    
 
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
