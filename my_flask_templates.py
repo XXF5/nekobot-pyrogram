@@ -79,7 +79,6 @@ LOGIN_TEMPLATE = """
     </div>
 
     <script>
-        // Mostrar mensaje de error si hay parámetro de error en la URL
         if (window.location.search.includes('error=1')) {
             document.getElementById('errorMessage').style.display = 'block';
         }
@@ -227,6 +226,17 @@ UTILS_TEMPLATE = """
             <div class="info-text">
                 💡 Puedes ingresar múltiples códigos separados por comas (ej: 123456,789012,345678).
                 La descarga se procesará en segundo plano y podrás ver el progreso en la página de descargas.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📥 Descargar desde MEGA</h2>
+            <form action="/mega" method="post">
+                <input type="text" name="mega_link" placeholder="Enlace MEGA (https://mega.nz/...)" required>
+                <button type="submit">Iniciar descarga MEGA</button>
+            </form>
+            <div class="info-text">
+                💡 Ingresa un enlace MEGA para descargar archivos. La descarga se procesará en segundo plano.
             </div>
         </div>
     </div>
@@ -421,6 +431,14 @@ DOWNLOADS_TEMPLATE = """
             </form>
         </div>
 
+        <div class="new-download-form">
+            <h3>➕ Nueva descarga MEGA</h3>
+            <form action="/mega" method="post">
+                <input type="text" name="mega_link" placeholder="Enlace MEGA (https://mega.nz/...)" required>
+                <button type="submit" class="refresh-btn" style="background: linear-gradient(135deg, #e846c9 0%, #8e44ad 100%);">Iniciar descarga MEGA</button>
+            </form>
+        </div>
+
         <div class="controls">
             <button class="refresh-btn" onclick="location.reload()">🔄 Actualizar</button>
             <div class="auto-refresh">
@@ -428,6 +446,54 @@ DOWNLOADS_TEMPLATE = """
                 <label for="autoRefresh">Actualizar página automáticamente</label>
             </div>
         </div>
+        
+        {% if mega_downloads %}
+            <h2>📦 Descargas MEGA</h2>
+            {% for id, download in mega_downloads.items() %}
+                <div class="download-card {% if download.state == 'completed' %}completed{% elif download.state == 'error' %}error{% else %}processing{% endif %}">
+                    <h3>📥 Descarga MEGA</h3>
+                    
+                    <div class="doujin-progress">
+                        Estado: {{ download.state }}
+                    </div>
+                    
+                    {% if download.state == 'processing' %}
+                    <div class="current-item">
+                        📋 Procesando: {{ download.link[:50] }}...
+                    </div>
+                    {% endif %}
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ download.progress }}%"></div>
+                    </div>
+                    
+                    <p><strong>Enlace:</strong> <a href="{{ download.link }}" target="_blank">{{ download.link[:50] }}...</a></p>
+                    
+                    <div class="stats">
+                        <div class="stat-item"><strong>⏰ Iniciado:</strong> {{ download.start_time[:19] }}</div>
+                        {% if download.end_time %}
+                        <div class="stat-item"><strong>🏁 Finalizado:</strong> {{ download.end_time[:19] }}</div>
+                        {% endif %}
+                        <div class="stat-item"><strong>📊 Progreso:</strong> {{ download.progress }}%</div>
+                        {% if download.output_dir %}
+                        <div class="stat-item"><strong>📂 Directorio:</strong> {{ download.output_dir }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if download.error %}
+                    <p style="color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 5px;">
+                        <strong>❌ Error:</strong> {{ download.error }}
+                    </p>
+                    {% endif %}
+                    
+                    {% if download.message %}
+                    <p style="color: #17a2b8; background: #d1ecf1; padding: 10px; border-radius: 5px;">
+                        <strong>ℹ️ Info:</strong> {{ download.message }}
+                    </p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endif %}
         
         <!-- Sección de descargas de Doujins -->
         {% if doujin_downloads %}
@@ -537,19 +603,27 @@ DOWNLOADS_TEMPLATE = """
             {% endfor %}
         {% endif %}
 
-        {% if not downloads and not doujin_downloads %}
+        {% if not downloads and not doujin_downloads and not mega_downloads %}
             <div style="text-align: center; padding: 40px; color: #6c757d;">
                 <h3>📭 No hay descargas activas</h3>
-                <p>Inicia una nueva descarga usando el formulario superior</p>
+                <p>Inicia una nueva descarga usando los formularios superiores</p>
             </div>
         {% endif %}
 
-        <!-- Formulario para nueva descarga al final -->
+        <!-- Formularios para nueva descarga al final -->
         <div class="new-download-form">
             <h3>➕ Nueva descarga Torrent/Magnet</h3>
             <form action="/magnet" method="post">
                 <input type="text" name="magnet" placeholder="Magnet link o URL .torrent" required>
                 <button type="submit" class="refresh-btn">Iniciar descarga</button>
+            </form>
+        </div>
+
+        <div class="new-download-form">
+            <h3>➕ Nueva descarga MEGA</h3>
+            <form action="/mega" method="post">
+                <input type="text" name="mega_link" placeholder="Enlace MEGA (https://mega.nz/...)" required>
+                <button type="submit" class="refresh-btn" style="background: linear-gradient(135deg, #e846c9 0%, #8e44ad 100%);">Iniciar descarga MEGA</button>
             </form>
         </div>
     </div>
@@ -561,15 +635,13 @@ DOWNLOADS_TEMPLATE = """
             if (document.getElementById('autoRefresh').checked) {
                 autoRefreshInterval = setInterval(() => {
                     location.reload();
-                }, 5000); // 5 segundos
+                }, 5000);
             } else {
                 clearInterval(autoRefreshInterval);
             }
         }
 
-        // No auto-activación al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
-            // El checkbox está desactivado por defecto
         });
     </script>
 </body>
@@ -740,7 +812,6 @@ MAIN_TEMPLATE = """
             });
         }
         
-        // Función para enviar formularios de forma segura
         function submitForm(form, event) {
             event.preventDefault();
             if (confirm('¿Estás seguro de que quieres realizar esta acción?')) {
@@ -983,7 +1054,6 @@ GALLERY_TEMPLATE = """
             document.body.style.overflow = 'auto';
         }
         
-        // Cerrar con ESC
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeFullscreen();
         });
@@ -1074,7 +1144,7 @@ SEARCH_NH_TEMPLATE = '''
         .image-container {
             position: relative;
             width: 100%;
-            padding-bottom: 140%; /* Proporción 1:1.4 para imágenes verticales */
+            padding-bottom: 140%;
             overflow: hidden;
         }
         
@@ -1368,7 +1438,6 @@ SEARCH_NH_TEMPLATE = '''
                 const originalSrc = imgElement.dataset.originalSrc;
                 
                 if (originalSrc && !originalSrc.includes('base64') && !originalSrc.includes('via.placeholder.com')) {
-                    // Simular clic en el botón
                     const event = new MouseEvent('click', {
                         view: window,
                         bubbles: true,
@@ -1376,7 +1445,6 @@ SEARCH_NH_TEMPLATE = '''
                     });
                     btn.dispatchEvent(event);
                     
-                    // Esperar entre conversiones
                     await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
@@ -1385,7 +1453,6 @@ SEARCH_NH_TEMPLATE = '''
             convertAllBtn.textContent = 'Convertir Todas las Imágenes a Base64';
         }
 
-        // Manejo de errores de imágenes
         document.addEventListener('DOMContentLoaded', function() {
             const images = document.querySelectorAll('img[data-original-src]');
             images.forEach(img => {
@@ -1397,7 +1464,6 @@ SEARCH_NH_TEMPLATE = '''
             });
         });
 
-        // Precarga suave de imágenes
         function preloadVisibleImages() {
             const images = document.querySelectorAll('img[data-original-src]');
             const observer = new IntersectionObserver((entries) => {
@@ -2232,7 +2298,6 @@ VIEW_NH_TEMPLATE = '''
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             
-            // Configurar eventos táctiles
             modalImage.addEventListener('touchstart', handleTouchStart, false);
             modalImage.addEventListener('touchend', handleTouchEnd, false);
         }
@@ -2258,10 +2323,8 @@ VIEW_NH_TEMPLATE = '''
             
             if (Math.abs(swipeDistance) > swipeThreshold) {
                 if (swipeDistance > 0) {
-                    // Swipe hacia arriba - siguiente imagen
                     navigateImage(1);
                 } else {
-                    // Swipe hacia abajo - imagen anterior
                     navigateImage(-1);
                 }
             }
@@ -2292,14 +2355,11 @@ VIEW_NH_TEMPLATE = '''
             }
         });
         
-        // Navegación con rueda del mouse
         document.getElementById('imageModal').addEventListener('wheel', function(e) {
             e.preventDefault();
             if (e.deltaY < 0) {
-                // Rueda hacia arriba - imagen anterior
                 navigateImage(-1);
             } else {
-                // Rueda hacia abajo - siguiente imagen
                 navigateImage(1);
             }
         }, { passive: false });
@@ -2696,7 +2756,6 @@ VIEW_3H_TEMPLATE = '''
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             
-            // Configurar eventos táctiles
             modalImage.addEventListener('touchstart', handleTouchStart, false);
             modalImage.addEventListener('touchend', handleTouchEnd, false);
         }
@@ -2722,10 +2781,8 @@ VIEW_3H_TEMPLATE = '''
             
             if (Math.abs(swipeDistance) > swipeThreshold) {
                 if (swipeDistance > 0) {
-                    // Swipe hacia arriba - siguiente imagen
                     navigateImage(1);
                 } else {
-                    // Swipe hacia abajo - imagen anterior
                     navigateImage(-1);
                 }
             }
@@ -2754,14 +2811,11 @@ VIEW_3H_TEMPLATE = '''
             }
         });
         
-        // Navegación con rueda del mouse
         document.getElementById('imageModal').addEventListener('wheel', function(e) {
             e.preventDefault();
             if (e.deltaY < 0) {
-                // Rueda hacia arriba - imagen anterior
                 navigateImage(-1);
             } else {
-                // Rueda hacia abajo - siguiente imagen
                 navigateImage(1);
             }
         }, { passive: false });
