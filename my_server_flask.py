@@ -475,33 +475,6 @@ def upload_file():
         return redirect("/")
     return "Archivo inválido.", 400
 
-@explorer.route("/magnet", methods=["GET", "POST"])
-@login_required
-def handle_magnet():
-    if request.method == "POST":
-        link = request.form.get("magnet", "").strip()
-    else:
-        link = request.args.get("magnet", "").strip()
-        
-    if not link:
-        return "<h3>❌ Magnet link vacío.</h3>", 400
-
-    try:
-        download_id = str(uuid.uuid4())
-        
-        def run_async_download():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(download_from_magnet_or_torrent(link, BASE_DIR, None, download_id))
-            finally:
-                loop.close()
-
-        Thread(target=run_async_download).start()
-        return redirect("/downloads")
-    except Exception as e:
-        return f"<h3>Error al iniciar descarga: {e}</h3>", 500
-
 @explorer.route("/mega", methods=["GET", "POST"])
 @login_required
 def handle_mega():
@@ -526,7 +499,19 @@ def handle_mega():
     
     def run_mega_download():
         try:
-            desmega_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "command", "desmega")
+            current_file_path = os.path.abspath(__file__)
+            current_dir = os.path.dirname(current_file_path)
+            desmega_path = os.path.join(current_dir, "command", "desmega")
+            
+            if not os.path.exists(desmega_path):
+                project_root = os.path.dirname(current_dir)
+                desmega_path = os.path.join(project_root, "command", "desmega")
+            
+            if not os.path.exists(desmega_path):
+                raise FileNotFoundError(f"No se encontró desmega en: {desmega_path}")
+            
+            os.chmod(desmega_path, 0o755)
+            
             output_dir = os.path.join(BASE_DIR, "mega_dl", download_id)
             os.makedirs(output_dir, exist_ok=True)
             
@@ -578,6 +563,34 @@ def handle_mega():
     response_msg += f"<p>Enlace: {mega_link[:50]}...</p>"
     response_msg += "<p>Puedes ver el progreso en la <a href='/downloads'>página de descargas</a></p>"
     return response_msg
+
+@explorer.route("/magnet", methods=["GET", "POST"])
+@login_required
+def handle_magnet():
+    if request.method == "POST":
+        link = request.form.get("magnet", "").strip()
+    else:
+        link = request.args.get("magnet", "").strip()
+        
+    if not link:
+        return "<h3>❌ Magnet link vacío.</h3>", 400
+
+    try:
+        download_id = str(uuid.uuid4())
+        
+        def run_async_download():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(download_from_magnet_or_torrent(link, BASE_DIR, None, download_id))
+            finally:
+                loop.close()
+
+        Thread(target=run_async_download).start()
+        return redirect("/downloads")
+    except Exception as e:
+        return f"<h3>Error al iniciar descarga: {e}</h3>", 500
+
 
 @explorer.route("/delete", methods=["GET", "POST"])
 @login_required
