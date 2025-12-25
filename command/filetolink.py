@@ -18,6 +18,10 @@ VAULT_FOLDER = "vault_files"
 SEVEN_ZIP_EXE = os.path.join("7z", "7zz")
 MAX_SIZE_MB = 2000
 
+user_cd_paths = {}
+user_upwith_filters = {}
+user_upwith_counters = {}
+
 def parse_nested_indices(text):
     result = []
     for part in text.split(","):
@@ -71,9 +75,40 @@ async def handle_up_command(client: Client, message: Message):
 
     fname, fid, size_mb = get_info(message.reply_to_message)
     parts = message.text.strip().split(maxsplit=1)
-    raw_path = parts[1].strip() if len(parts) == 2 else fname or "archivo"
-    safe_parts = [secure_filename(p) for p in raw_path.split("/")]
-    relative_path = os.path.join(*safe_parts)
+    
+    user_id = message.from_user.id
+    
+    if user_id in user_upwith_filters:
+        pattern_info = user_upwith_filters[user_id]
+        current_counter = user_upwith_counters.get(user_id, pattern_info["start"])
+        
+        if current_counter <= pattern_info["end"]:
+            num_str = str(current_counter).zfill(pattern_info["zeros"])
+            filename = pattern_info["pattern"].replace("{num}", num_str) + pattern_info["extension"]
+            user_upwith_counters[user_id] = current_counter + 1
+            
+            if user_upwith_counters[user_id] > pattern_info["end"]:
+                await message.reply("Todos los nombres en el filtro han sido utilizados, restaurando comportamiento natural de /upfile")
+                del user_upwith_filters[user_id]
+                del user_upwith_counters[user_id]
+        else:
+            filename = fname or "archivo"
+    else:
+        raw_path = parts[1].strip() if len(parts) == 2 else fname or "archivo"
+        filename = raw_path
+    
+    if user_id in user_cd_paths:
+        cd_path = user_cd_paths[user_id]
+        if cd_path:
+            safe_parts = [secure_filename(p) for p in cd_path.split("/")]
+            relative_path = os.path.join(*safe_parts, filename)
+        else:
+            safe_parts = [secure_filename(p) for p in filename.split("/")]
+            relative_path = os.path.join(*safe_parts)
+    else:
+        safe_parts = [secure_filename(p) for p in filename.split("/")]
+        relative_path = os.path.join(*safe_parts)
+    
     full_path = os.path.join(VAULT_FOLDER, relative_path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
@@ -132,14 +167,92 @@ async def handle_up_command(client: Client, message: Message):
     else:
         await message.reply(f"✅ Descarga completada en {elapsed}s\nArchivo guardado como `{relative_path}`")
 
+async def handle_cd_command(client: Client, message: Message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+    parts = text.split(maxsplit=1)
+    
+    if len(parts) == 1:
+        user_cd_paths[user_id] = ""
+        await message.reply("📁 Ruta restablecida a la raíz de vault_files")
+        return
+    
+    new_path = parts[1].strip()
+    safe_parts = [secure_filename(p) for p in new_path.split("/")]
+    final_path = "/".join(safe_parts)
+    
+    user_cd_paths[user_id] = final_path
+    await message.reply(f"📁 Ruta cambiada a: `{final_path}`")
+
+async def handle_upwith_command(client: Client, message: Message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+    parts = text.split(maxsplit=1)
+    
+    if len(parts) < 2:
+        await message.reply("❌ Uso: /upwith <patrón>")
+        await message.reply("Ejemplo: /upwith Anime/{01-12}.mp4")
+        await message.reply("Ejemplo: /upwith {1-24}.mkv")
+        return
+    
+    pattern_text = parts[1].strip()
+    
+    match = re.search(r'\{(\d+)-(\d+)\}', pattern_text)
+    if not match:
+        await message.reply("❌ Patrón no válido. Debe contener {inicio-fin}")
+        return
+    
+    start_num = int(match.group(1))
+    end_num = int(match.group(2))
+    
+    if start_num > end_num:
+        await message.reply("❌ El número inicial no puede ser mayor que el final")
+        return
+    
+    zeros = len(match.group(1))
+    pattern_before = pattern_text[:match.start()]
+    pattern_after = pattern_text[match.end():]
+    
+    extension_match = re.search(r'\.\w+$', pattern_after)
+    if extension_match:
+        extension = extension_match.group(0)
+        pattern_after = pattern_after[:extension_match.start()]
+    else:
+        extension = ""
+    
+    user_upwith_filters[user_id] = {
+        "pattern": pattern_before + "{num}" + pattern_after,
+        "start": start_num,
+        "end": end_num,
+        "zeros": zeros,
+        "extension": extension
+    }
+    
+    user_upwith_counters[user_id] = start_num
+    
+    await message.reply(f"✅ Filtro establecido: {start_num} a {end_num} archivos")
+    await message.reply(f"📄 Patrón: `{pattern_before}{'0'*zeros}{pattern_after}{extension}`")
+
 async def handle_auto_up_command(client: Client, message: Message):
     from arg_parser import get_args
     args = get_args()
 
     fname, fid, size_mb = get_info(message)
-    raw_path = fname or "archivo"
-    safe_parts = [secure_filename(p) for p in raw_path.split("/")]
-    relative_path = os.path.join(*safe_parts)
+    user_id = message.from_user.id
+    
+    if user_id in user_cd_paths:
+        cd_path = user_cd_paths[user_id]
+        if cd_path:
+            safe_parts = [secure_filename(p) for p in cd_path.split("/")]
+            safe_parts.append(secure_filename(fname or "archivo"))
+            relative_path = os.path.join(*safe_parts)
+        else:
+            safe_parts = [secure_filename(p) for p in (fname or "archivo").split("/")]
+            relative_path = os.path.join(*safe_parts)
+    else:
+        safe_parts = [secure_filename(p) for p in (fname or "archivo").split("/")]
+        relative_path = os.path.join(*safe_parts)
+    
     full_path = os.path.join(VAULT_FOLDER, relative_path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
