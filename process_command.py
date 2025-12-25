@@ -55,7 +55,7 @@ def cmd(command_env, int_lvl):
 
 async def send_thanks_response(client, message):
     sticker1 = "CAACAgIAAxkBAAKIrWkAAccNDNiK8WZB5cO_sZz-wmlP2AAC3EsAAh9SSEtUr8U_tAoCoB4E"
-    sticker2 = "CAACAgIAAxkBAAKIsWkAAccpr_2KQcWqauJ3Gxs2Q8RqZwACkEMAAjeJSUu0N9e8-UNkeh4E"
+    sticker2 = "CAACAgIAAxkBAAKIsWkAAcdpr_2KQcWqauJ3Gxs2Q8RqZwACkEMAAjeJSUu0N9e8-UNkeh4E"
     
     await client.send_sticker(chat_id=message.chat.id, sticker=sticker1)
     await asyncio.sleep(1)
@@ -322,7 +322,7 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                     await message.reply("Responda a un mensaje con archivo multimedia válido para usarlo")
                     return
                 caption_text = arg if arg else "Archivo reenviado"
-                await caption(client, message.chat.id, file_id, caption_text)
+                await caption(client, message.chat.id, file_id, caption_text, message)
 
     elif command in ("/setmail", "/sendmail", "/sendmailb", "/verify", "/setmb", "/setdelay", "/multisetmail", "/multisendmail", "/savemail", "/mailcopy"):
         if cmd("mailtools", int_lvl):
@@ -412,14 +412,16 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                 await cambiar_miniatura(client, message, reply)
 
 
-    elif command in ("/upfile", "/clearfiles", "/listfiles", "/sendfile", "/autoup"):
+    elif command in ("/upfile", "/clearfiles", "/listfiles", "/sendfile", "/autoup", "/cd", "/upwith"):
         if cmd("filetolink", int_lvl):
             from command.filetolink import (
                 handle_up_command,
                 clear_vault_files,
                 list_vault_files,
                 send_vault_file_by_index,
-                handle_auto_up_command
+                handle_auto_up_command,
+                handle_cd_command,
+                handle_upwith_command
             )
             if command == "/upfile":
                 await handle_up_command(client, message)
@@ -433,6 +435,10 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl):
                 auto_files_users[user_id] = not auto_files_users.get(user_id, False)
                 status = "✅ Auto-upload activado." if auto_files_users[user_id] else "🛑 Auto-upload desactivado."
                 await client.send_message(chat_id=message.chat.id, text=status, protect_content=False)
+            elif command == "/cd":
+                await handle_cd_command(client, message)
+            elif command == "/upwith":
+                await handle_upwith_command(client, message)
 
     elif (message.document or message.video or message.audio or message.voice or message.photo or message.animation) and auto_files_users.get(user_id, False):
         if cmd("filetolink", int_lvl):
