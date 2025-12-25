@@ -486,7 +486,10 @@ def handle_mega():
     if not mega_link or not mega_link.startswith("https://mega.nz/"):
         return "<h3>❌ Enlace MEGA no válido.</h3>", 400
 
-    download_id = str(uuid.uuid4())
+    # 📂 Nombre de carpeta con timestamp en vez de UUID
+    habana_tz = pytz.timezone('America/Havana')
+    timestamp_folder = datetime.now(habana_tz).strftime("%Y%m%d%H%M%S")
+    download_id = timestamp_folder
     
     with mega_lock:
         mega_downloads[download_id] = {
@@ -512,6 +515,7 @@ def handle_mega():
             
             os.chmod(desmega_path, 0o755)
             
+            # 📂 Carpeta nombrada con timestamp
             output_dir = os.path.join(BASE_DIR, "mega_dl", download_id)
             os.makedirs(output_dir, exist_ok=True)
             
