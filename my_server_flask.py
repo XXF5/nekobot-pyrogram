@@ -278,7 +278,6 @@ def browse():
                                 user_level=user_level,
                                 total_files=total_files)
 
-
 @explorer.route("/files", methods=["GET", "POST"])
 @login_required
 def list_files():
