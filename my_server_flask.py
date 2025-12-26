@@ -21,6 +21,7 @@ import requests
 from io import BytesIO
 from command.hapi.h3 import create_3hentai_cbz, serve_and_clean
 from command.get_files.scrap_nh import scrape_nhentai_with_selenium
+from command.db.db import save_user_data_to_db, load_user_config
 
 def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower() 
@@ -54,22 +55,9 @@ def decrypt_token(token):
         return None
 
 def get_user_level(user_id_str):
-    ruta_db = os.path.join(os.getcwd(), 'bot_cmd.db')
-    if not os.path.exists(ruta_db):
-        return 0
-    
-    try:
-        conn = sqlite3.connect(ruta_db)
-        cursor = conn.cursor()
-        cursor.execute('SELECT int_lvl FROM acceso WHERE id = ?', (user_id_str,))
-        resultado = cursor.fetchone()
-        conn.close()
-        
-        if resultado:
-            return int(resultado[0])
-    except:
-        pass
-    
+    user_level = load_user_config(user_id_str, "lvl")
+    if user_level and user_level.isdigit():
+        return int(user_level)
     return 0
 
 def validate_credentials(username, password):
@@ -81,17 +69,22 @@ def validate_credentials(username, password):
     
     for uid, creds in users.items():
         if creds.get("user") == username and creds.get("pass") == password:
-            return {"user_id": uid, "username": username, "level": get_user_level(uid)}
+            user_level = get_user_level(uid)
+            return {"user_id": uid, "username": username, "level": user_level}
     return None
 
 def check_token_auth():
     token = request.args.get('token')
     if token:
         token_data = decrypt_token(token)
-        if token_data and validate_credentials(token_data.get('user'), token_data.get('pass')):
-            session["logged_in"] = True
-            session["username"] = token_data.get('user')
-            return True
+        if token_data:
+            user_info = validate_credentials(token_data.get('user'), token_data.get('pass'))
+            if user_info:
+                session["logged_in"] = True
+                session["username"] = user_info["username"]
+                session["user_id"] = user_info["user_id"]
+                session["user_level"] = user_info["level"]
+                return True
     return False
 
 def login_required(f):
@@ -668,7 +661,7 @@ def handle_mega():
     if not mega_link or not mega_link.startswith("https://mega.nz/"):
         return "<h3>❌ Enlace MEGA no válido.</h3>", 400
 
-    # 📂 Nombre de carpeta con timestamp en vez de UUID
+    import pytz
     habana_tz = pytz.timezone('America/Havana')
     timestamp_folder = datetime.now(habana_tz).strftime("%Y%m%d%H%M%S")
     download_id = timestamp_folder
@@ -697,7 +690,6 @@ def handle_mega():
             
             os.chmod(desmega_path, 0o755)
             
-            # 📂 Carpeta nombrada con timestamp
             output_dir = os.path.join(BASE_DIR, "mega_dl", download_id)
             os.makedirs(output_dir, exist_ok=True)
             
@@ -902,6 +894,8 @@ def extract_archive():
     except Exception as e:
         return f"<h3>Error al descomprimir archivo: {e}</h3>", 500
 
+from command.hapi.nh import create_nhentai_cbz
+
 @explorer.route("/api/d3h/<code>")
 #@login_required
 def api_download_3hentai(code):
@@ -910,9 +904,6 @@ def api_download_3hentai(code):
         return serve_and_clean(cbz_path)
     except Exception as e:
         return jsonify({"error": f"Error al descargar desde 3hentai: {str(e)}"}), 500
-
-
-from command.hapi.nh import create_nhentai_cbz
 
 @explorer.route("/api/dnh/<int:code>")
 #@login_required
