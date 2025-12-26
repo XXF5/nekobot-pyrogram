@@ -70,7 +70,7 @@ def validate_credentials(username, password):
     for uid, creds in users.items():
         if creds.get("user") == username and creds.get("pass") == password:
             user_level = get_user_level(uid)
-            return {"user_id": uid, "username": username, "level": user_level}
+            return {"user_id": uid, "username": username, "level": user_level, "password": password}
     return None
 
 def check_token_auth():
@@ -84,6 +84,7 @@ def check_token_auth():
                 session["username"] = user_info["username"]
                 session["user_id"] = user_info["user_id"]
                 session["user_level"] = user_info["level"]
+                session["user_password"] = user_info["password"]
                 return True
     return False
 
@@ -178,6 +179,7 @@ def login():
                 session["username"] = user_info["username"]
                 session["user_id"] = user_info["user_id"]
                 session["user_level"] = user_info["level"]
+                session["user_password"] = user_info["password"]
                 return redirect("/")
     
     if request.method == "POST":
@@ -190,6 +192,7 @@ def login():
             session["username"] = user_info["username"]
             session["user_id"] = user_info["user_id"]
             session["user_level"] = user_info["level"]
+            session["user_password"] = user_info["password"]
             return redirect("/")
         return "<h3 style='color:red;'>❌ Credenciales incorrectas</h3>", 403
 
@@ -313,6 +316,7 @@ def manage_web_users():
     
     current_user_id = session.get("user_id")
     current_user_level = session.get("user_level", 0)
+    current_user_password = session.get("user_password", "")
     
     if request.method == "POST":
         action = request.form.get("action")
@@ -412,12 +416,14 @@ def manage_web_users():
             if target_level < 4:
                 filtered_users[uid] = {
                     "user": creds["user"],
+                    "pass": creds["pass"] if uid == current_user_id else "****",
                     "level": target_level
                 }
     
     return render_template_string(WEBUSERS_TEMPLATE, 
                                  users=filtered_users, 
-                                 current_user_level=current_user_level)
+                                 current_user_level=current_user_level,
+                                 current_user_id=current_user_id)
 
 @explorer.route("/gallery", methods=["GET", "POST"])
 @login_required
@@ -457,11 +463,13 @@ def gallery():
 
 @explorer.route("/utils", methods=["GET", "POST"])
 @login_required
+@level_required(1)
 def utils_page():
     return render_template_string(UTILS_TEMPLATE)
 
 @explorer.route("/downloads", methods=["GET", "POST"])
 @login_required
+@level_required(1)
 def downloads_page():
     cleanup_old_downloads()
     downloads = get_download_progress()
@@ -496,14 +504,18 @@ def downloads_page():
 
 @explorer.route("/api/downloads", methods=["GET", "POST"])
 @login_required
+@level_required(1)
 def api_downloads():
     cleanup_old_downloads()
     downloads = get_download_progress()
     return jsonify({"torrents": downloads, "doujins": doujin_downloads, "mega": mega_downloads})
 
 @explorer.route("/download", methods=["GET", "POST"])
-#@login_required
 def download():
+    check_token_auth()
+    if not session.get("logged_in"):
+        return redirect("/login")
+    
     if request.method == "POST":
         rel_path = request.form.get("path")
     else:
@@ -537,6 +549,7 @@ def download():
 
 @explorer.route("/crear_cbz", methods=["GET", "POST"])
 @login_required
+@level_required(1)
 def crear_cbz():
     if request.method == "POST":
         codigo_input = request.form.get("codigo", "").strip()
@@ -652,6 +665,7 @@ def upload_file():
 
 @explorer.route("/mega", methods=["GET", "POST"])
 @login_required
+@level_required(1)
 def handle_mega():
     if request.method == "POST":
         mega_link = request.form.get("mega_link", "").strip()
@@ -744,6 +758,7 @@ def handle_mega():
 
 @explorer.route("/magnet", methods=["GET", "POST"])
 @login_required
+@level_required(1)
 def handle_magnet():
     if request.method == "POST":
         link = request.form.get("magnet", "").strip()
@@ -768,7 +783,6 @@ def handle_magnet():
         return redirect("/downloads")
     except Exception as e:
         return f"<h3>Error al iniciar descarga: {e}</h3>", 500
-
 
 @explorer.route("/delete", methods=["GET", "POST"])
 @login_required
@@ -800,9 +814,9 @@ def delete_file():
     except Exception as e:
         return f"<h3>Error al eliminar: {e}</h3>", 500
 
-
 @explorer.route("/compress", methods=["GET", "POST"])
 @login_required
+@level_required(4)
 def compress_items():
     if request.method == "POST":
         archive_name = request.form.get("archive_name", "").strip()
@@ -849,6 +863,7 @@ def compress_items():
 
 @explorer.route("/extract", methods=["GET", "POST"])
 @login_required
+@level_required(4)
 def extract_archive():
     if request.method == "POST":
         archive_path = request.form.get("path")
@@ -897,7 +912,7 @@ def extract_archive():
 from command.hapi.nh import create_nhentai_cbz
 
 @explorer.route("/api/d3h/<code>")
-#@login_required
+@login_required
 def api_download_3hentai(code):
     try:
         cbz_path, filename = create_3hentai_cbz(code)
@@ -906,7 +921,7 @@ def api_download_3hentai(code):
         return jsonify({"error": f"Error al descargar desde 3hentai: {str(e)}"}), 500
 
 @explorer.route("/api/dnh/<int:code>")
-#@login_required
+@login_required
 def api_download_nhentai(code):
     try:
         cbz_path, filename = create_nhentai_cbz(code)
@@ -916,7 +931,7 @@ def api_download_nhentai(code):
 
 @explorer.route("/api/snh/", methods=["GET"])
 @explorer.route("/api/snh/<path:search_term>", methods=["GET"])
-#@login_required
+@login_required
 def search_nhentai(search_term=None):
     if request.method == "GET" and not search_term:
         search_term = request.args.get("q", "").strip()
@@ -952,7 +967,7 @@ from command.get_files.search_3h import scrape_3hentai_search
 
 @explorer.route("/api/s3h/", methods=["GET"])
 @explorer.route("/api/s3h/<path:search_term>", methods=["GET"])
-#@login_required
+@login_required
 def search_3hentai(search_term=None):
     if request.method == "GET" and not search_term:
         search_term = request.args.get("q", "").strip()
@@ -998,7 +1013,7 @@ def search_3hentai(search_term=None):
                                 total_results=total_results)
     
 @explorer.route("/api/proxy-image")
-#@login_required
+@login_required
 def proxy_image():
     import requests
     from io import BytesIO
@@ -1020,7 +1035,7 @@ def proxy_image():
         return jsonify({"error": str(e)}), 500
 
 @explorer.route("/api/vnh/<int:code>")
-#@login_required
+@login_required
 def view_nhentai(code):
     try:
         from command.get_files.nh_selenium import scrape_nhentai
@@ -1043,6 +1058,7 @@ def view_nhentai(code):
         return f"<h3>Error al cargar la galería: {str(e)}</h3>", 500
 
 @explorer.route("/api/v3h/<code>")
+@login_required
 def view_3hentai(code):
     try:
         from command.get_files.h3_links import obtener_titulo_y_imagenes
@@ -1067,6 +1083,7 @@ def view_3hentai(code):
         return f"<h3>Error al cargar la galería 3Hentai: {str(e)}</h3>", 500
 
 @explorer.route("/api/create-cbz", methods=["POST"])
+@login_required
 def api_create_cbz():
     try:
         if not request.files:
