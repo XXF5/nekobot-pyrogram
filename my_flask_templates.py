@@ -725,11 +725,11 @@ NEW_MAIN_TEMPLATE = """
         {% for folder_name, folder_data in folders.items() %}
         <div class="folder">
             <div class="folder-header" onclick="toggleFolder('{{ folder_name }}')">
-                <span>📁 {{ folder_name }} ({{ folder_data.items|length }} archivos)</span>
+                <span>📁 {{ folder_name }} ({{ folder_data["items"]|length }} archivos)</span>
                 <span id="icon-{{ folder_name }}">▶</span>
             </div>
             <div class="folder-content" id="content-{{ folder_name }}">
-                {% for file in folder_data.items %}
+                {% for file in folder_data["items"] %}
                 <div class="file-item">
                     <div style="display: flex; align-items: center;">
                         <span class="file-index">{{ file.index }}</span>
