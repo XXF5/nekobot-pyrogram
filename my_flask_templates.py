@@ -2852,7 +2852,7 @@ WEBUSERS_TEMPLATE = """
                         <td>{{ uid }}</td>
                         <td>{{ user_data.user }}</td>
                         {% if current_user_level >= 3 %}
-                        <td>{{ user_data.pass if user_data.pass else '****' }}</td>
+                        <td>{{ user_data.pass if uid == current_user_id else '****' }}</td>
                         {% endif %}
                         <td>
                             {% if user_data.level == 6 %}Owner
