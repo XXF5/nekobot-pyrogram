@@ -6,7 +6,7 @@ from flask import Flask, request, send_from_directory, render_template_string, r
 from threading import Thread, Lock
 from command.torrets_tools import download_from_magnet_or_torrent, get_download_progress, cleanup_old_downloads
 from command.htools import crear_cbz_desde_fuente
-from my_flask_templates import LOGIN_TEMPLATE, MAIN_TEMPLATE, UTILS_TEMPLATE, DOWNLOADS_TEMPLATE, GALLERY_TEMPLATE, SEARCH_NH_TEMPLATE, SEARCH_3H_TEMPLATE, VIEW_NH_TEMPLATE, VIEW_3H_TEMPLATE
+from my_flask_templates import LOGIN_TEMPLATE, NEW_MAIN_TEMPLATE, WEBUSERS_TEMPLATE, UTILS_TEMPLATE, DOWNLOADS_TEMPLATE, GALLERY_TEMPLATE, SEARCH_NH_TEMPLATE, SEARCH_3H_TEMPLATE, VIEW_NH_TEMPLATE, VIEW_3H_TEMPLATE
 import uuid
 from datetime import datetime
 import re
@@ -53,6 +53,25 @@ def decrypt_token(token):
     except:
         return None
 
+def get_user_level(user_id_str):
+    ruta_db = os.path.join(os.getcwd(), 'bot_cmd.db')
+    if not os.path.exists(ruta_db):
+        return 0
+    
+    try:
+        conn = sqlite3.connect(ruta_db)
+        cursor = conn.cursor()
+        cursor.execute('SELECT int_lvl FROM acceso WHERE id = ?', (user_id_str,))
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        if resultado:
+            return int(resultado[0])
+    except:
+        pass
+    
+    return 0
+
 def validate_credentials(username, password):
     try:
         with open(WEBACCESS_FILE, "r", encoding="utf-8") as f:
@@ -62,8 +81,8 @@ def validate_credentials(username, password):
     
     for uid, creds in users.items():
         if creds.get("user") == username and creds.get("pass") == password:
-            return True
-    return False
+            return {"user_id": uid, "username": username, "level": get_user_level(uid)}
+    return None
 
 def check_token_auth():
     token = request.args.get('token')
@@ -82,6 +101,20 @@ def login_required(f):
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
+
+def level_required(min_level):
+    def decorator(f):
+        def wrapper(*args, **kwargs):
+            if not session.get("logged_in"):
+                return redirect("/login")
+            
+            user_level = session.get("user_level", 0)
+            if user_level < min_level:
+                abort(403)
+            return f(*args, **kwargs)
+        wrapper.__name__ = f.__name__
+        return wrapper
+    return decorator
 
 def validate_path(input_path):
     if not input_path:
@@ -145,23 +178,26 @@ def login():
     token = request.args.get('token')
     if token:
         token_data = decrypt_token(token)
-        if token_data and validate_credentials(token_data.get('user'), token_data.get('pass')):
-            session["logged_in"] = True
-            session["username"] = token_data.get('user')
-            return redirect("/")
+        if token_data:
+            user_info = validate_credentials(token_data.get('user'), token_data.get('pass'))
+            if user_info:
+                session["logged_in"] = True
+                session["username"] = user_info["username"]
+                session["user_id"] = user_info["user_id"]
+                session["user_level"] = user_info["level"]
+                return redirect("/")
     
     if request.method == "POST":
         u = request.form.get("username", "").strip()
         p = request.form.get("password", "").strip()
-        try:
-            with open(WEBACCESS_FILE, "r", encoding="utf-8") as f:
-                users = json.load(f)
-        except:
-            users = {}
-        for uid, creds in users.items():
-            if creds.get("user") == u and creds.get("pass") == p:
-                session["logged_in"] = True
-                return redirect("/")
+        
+        user_info = validate_credentials(u, p)
+        if user_info:
+            session["logged_in"] = True
+            session["username"] = user_info["username"]
+            session["user_id"] = user_info["user_id"]
+            session["user_level"] = user_info["level"]
+            return redirect("/")
         return "<h3 style='color:red;'>❌ Credenciales incorrectas</h3>", 403
 
     return render_template_string(LOGIN_TEMPLATE)
@@ -169,50 +205,79 @@ def login():
 @explorer.route("/browse", methods=["GET", "POST"])
 @login_required
 def browse():
-    if request.method == "POST":
-        rel_path = request.form.get("path", "")
-    else:
-        rel_path = request.args.get("path", "")
-        
-    abs_requested = os.path.abspath(os.path.join(BASE_DIR, rel_path))
-    abs_base = os.path.abspath(BASE_DIR)
-
-    if not abs_requested.startswith(abs_base):
-        return "<h3>❌ Acceso denegado: ruta fuera de 'vault_files'.</h3>", 403
-
-    try:
+    user_level = session.get("user_level", 0)
+    
+    def list_files_recursive(directory, base_path, prefix="", file_index_start=0):
         items = []
-        for name in sorted(os.listdir(abs_requested), key=natural_sort_key):
-            full_path = os.path.join(abs_requested, name)
-            is_dir = os.path.isdir(full_path)
-            size_mb = round(os.path.getsize(full_path) / (1024 * 1024), 2) if not is_dir else "-"
-            
-            rel_item_path = os.path.relpath(full_path, abs_base)
-            items.append({
-                "name": name,
-                "rel_path": rel_item_path,
-                "full_path": full_path,
-                "is_dir": is_dir,
-                "size_mb": size_mb
-            })
+        file_count = file_index_start
         
-        image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
-        has_images = any(
-            os.path.isfile(os.path.join(abs_requested, name)) and 
-            any(name.lower().endswith(ext) for ext in image_extensions)
-            for name in os.listdir(abs_requested)
-        )
+        try:
+            for name in sorted(os.listdir(directory), key=natural_sort_key):
+                full_path = os.path.join(directory, name)
+                rel_path = os.path.relpath(full_path, base_path)
+                
+                if os.path.isdir(full_path):
+                    items.append({
+                        "type": "dir",
+                        "name": name,
+                        "rel_path": rel_path,
+                        "full_path": full_path,
+                        "index": None
+                    })
+                else:
+                    file_count += 1
+                    size_mb = round(os.path.getsize(full_path) / (1024 * 1024), 2)
+                    items.append({
+                        "type": "file",
+                        "name": name,
+                        "rel_path": rel_path,
+                        "full_path": full_path,
+                        "size_mb": size_mb,
+                        "index": file_count
+                    })
         
-        current_rel_path = os.path.relpath(abs_requested, abs_base)
-        if current_rel_path == ".":
-            current_rel_path = ""
+        except Exception:
+            pass
+        
+        return items, file_count
+    
+    all_items = []
+    total_files = 0
+    
+    abs_base = os.path.abspath(BASE_DIR)
+    items, total_files = list_files_recursive(abs_base, abs_base)
+    all_items.extend(items)
+    
+    organized_items = {}
+    for item in all_items:
+        if item["type"] == "dir":
+            dir_name = item["name"]
+            organized_items[dir_name] = {
+                "type": "dir",
+                "items": [],
+                "full_path": item["full_path"]
+            }
+    
+    for item in all_items:
+        if item["type"] == "file":
+            parent_dir = os.path.dirname(item["rel_path"])
+            if parent_dir == ".":
+                parent_dir = "root"
             
-        return render_template_string(MAIN_TEMPLATE, 
-                                    items=items, 
-                                    has_images=has_images, 
-                                    current_path=current_rel_path)
-    except Exception as e:
-        return f"<h3>Error al acceder a los archivos: {e}</h3>", 500
+            if parent_dir not in organized_items:
+                organized_items[parent_dir] = {
+                    "type": "dir",
+                    "items": [],
+                    "full_path": os.path.join(abs_base, parent_dir) if parent_dir != "root" else abs_base
+                }
+            
+            organized_items[parent_dir]["items"].append(item)
+    
+    return render_template_string(NEW_MAIN_TEMPLATE, 
+                                folders=organized_items, 
+                                user_level=user_level,
+                                total_files=total_files)
+
 
 @explorer.route("/files", methods=["GET", "POST"])
 @login_required
@@ -243,6 +308,124 @@ def list_files():
         return response_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
     except Exception as e:
         return f"Error al listar archivos: {e}", 500
+
+@explorer.route("/webusers", methods=["GET", "POST"])
+@login_required
+@level_required(3)
+def manage_web_users():
+    try:
+        with open(WEBACCESS_FILE, "r", encoding="utf-8") as f:
+            web_users = json.load(f)
+    except:
+        web_users = {}
+    
+    current_user_id = session.get("user_id")
+    current_user_level = session.get("user_level", 0)
+    
+    if request.method == "POST":
+        action = request.form.get("action")
+        
+        if action == "create":
+            if current_user_level < 4:
+                abort(403)
+            
+            new_id = request.form.get("new_id", "").strip()
+            new_user = request.form.get("new_user", "").strip()
+            new_pass = request.form.get("new_pass", "").strip()
+            
+            if not new_id or not new_user or not new_pass:
+                return "Todos los campos son requeridos", 400
+            
+            if new_id in web_users:
+                return "ID ya existe", 400
+            
+            web_users[new_id] = {
+                "user": new_user,
+                "pass": new_pass
+            }
+            
+            with open(WEBACCESS_FILE, "w", encoding="utf-8") as f:
+                json.dump(web_users, f, indent=2)
+            
+            return redirect("/webusers")
+        
+        elif action == "delete":
+            user_id_to_delete = request.form.get("user_id_to_delete", "").strip()
+            
+            if not user_id_to_delete or user_id_to_delete not in web_users:
+                return "Usuario no encontrado", 404
+            
+            target_level = get_user_level(user_id_to_delete)
+            
+            if current_user_level < 5:
+                if target_level >= current_user_level:
+                    return "No tienes permiso para borrar este usuario", 403
+            
+            del web_users[user_id_to_delete]
+            
+            with open(WEBACCESS_FILE, "w", encoding="utf-8") as f:
+                json.dump(web_users, f, indent=2)
+            
+            return redirect("/webusers")
+        
+        elif action == "update":
+            user_id_to_update = request.form.get("user_id_to_update", "").strip()
+            new_username = request.form.get("new_username", "").strip()
+            new_password = request.form.get("new_password", "").strip()
+            
+            if user_id_to_update not in web_users:
+                return "Usuario no encontrado", 404
+            
+            target_level = get_user_level(user_id_to_update)
+            
+            if current_user_level < 5:
+                if target_level >= current_user_level:
+                    return "No tienes permiso para modificar este usuario", 403
+            
+            if new_username:
+                web_users[user_id_to_update]["user"] = new_username
+            if new_password:
+                web_users[user_id_to_update]["pass"] = new_password
+            
+            with open(WEBACCESS_FILE, "w", encoding="utf-8") as f:
+                json.dump(web_users, f, indent=2)
+            
+            return redirect("/webusers")
+    
+    filtered_users = {}
+    for uid, creds in web_users.items():
+        target_level = get_user_level(uid)
+        
+        if current_user_level == 6:
+            filtered_users[uid] = {
+                "user": creds["user"],
+                "pass": creds["pass"],
+                "level": target_level
+            }
+        elif current_user_level == 5:
+            if target_level < 6:
+                filtered_users[uid] = {
+                    "user": creds["user"],
+                    "pass": creds["pass"],
+                    "level": target_level
+                }
+        elif current_user_level == 4:
+            if target_level < 5:
+                filtered_users[uid] = {
+                    "user": creds["user"],
+                    "pass": creds["pass"],
+                    "level": target_level
+                }
+        elif current_user_level == 3:
+            if target_level < 4:
+                filtered_users[uid] = {
+                    "user": creds["user"],
+                    "level": target_level
+                }
+    
+    return render_template_string(WEBUSERS_TEMPLATE, 
+                                 users=filtered_users, 
+                                 current_user_level=current_user_level)
 
 @explorer.route("/gallery", methods=["GET", "POST"])
 @login_required
@@ -598,6 +781,7 @@ def handle_magnet():
 
 @explorer.route("/delete", methods=["GET", "POST"])
 @login_required
+@level_required(4)
 def delete_file():
     if request.method == "POST":
         path = request.form.get("path")
@@ -621,9 +805,10 @@ def delete_file():
         else:
             return "<h3>❌ Elemento no válido para eliminar.</h3>", 400
             
-        return redirect(request.referrer or "/")
+        return redirect("/")
     except Exception as e:
         return f"<h3>Error al eliminar: {e}</h3>", 500
+
 
 @explorer.route("/compress", methods=["GET", "POST"])
 @login_required
@@ -970,6 +1155,7 @@ def api_create_cbz():
 
 @explorer.route("/rename", methods=["GET", "POST"])
 @login_required
+@level_required(4)
 def rename_item():
     if request.method == "POST":
         old_path = request.form.get("old_path")
@@ -989,9 +1175,9 @@ def rename_item():
             return "<h3>❌ El nuevo nombre crea una ruta no válida.</h3>", 400
             
         os.rename(old_path, new_path)
-        return redirect(request.referrer or "/")
+        return redirect("/")
     except Exception as e:
-        return f"<h3>Error al renombrar: {e}</h3>", 500
+        return f"<h3>Error al renombrar: {e}</h3>", 500 
         
 @explorer.route("/help", methods=["GET"])
 def help_page():
