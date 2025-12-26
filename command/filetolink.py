@@ -315,17 +315,54 @@ async def list_vault_files(client: Client, message: Message):
     if not os.path.isdir(VAULT_FOLDER):
         await client.send_message(message.from_user.id, "📁 La carpeta está vacía o no existe.")
         return
-
+    
+    def list_files_recursive(directory, base_path, prefix="", file_index_start=0):
+        items = []
+        file_count = file_index_start
+        
+        try:
+            for name in sorted(os.listdir(directory), key=natural_sort_key):
+                full_path = os.path.join(directory, name)
+                rel_path = os.path.relpath(full_path, base_path)
+                
+                if os.path.isdir(full_path):
+                    items.append(f"📁 {prefix}{name}/")
+                    sub_items, file_count = list_files_recursive(full_path, base_path, prefix + "  ", file_count)
+                    items.extend(sub_items)
+                else:
+                    file_count += 1
+                    size_mb = os.path.getsize(full_path) / (1024 * 1024)
+                    items.append(f"{file_count:4d}. 📄 {prefix}{name} — {size_mb:.2f} MB")
+        
+        except Exception:
+            pass
+        
+        return items, file_count
+    
     texto = "📄 Archivos disponibles:\n\n"
-    all_files = get_all_vault_files()
-
-    for idx, (folder, fname, fpath) in enumerate(all_files, start=1):
-        size_mb = os.path.getsize(fpath) / (1024 * 1024)
-        ruta = folder if folder else "Root"
-        texto += f"{idx}. {fname} — {size_mb:.2f} MB ({ruta})\n"
-
-    await client.send_message(message.from_user.id, texto.strip())
-
+    all_items, total_files = list_files_recursive(VAULT_FOLDER, VAULT_FOLDER)
+    
+    current_chunk = ""
+    chunks = []
+    
+    for item in all_items:
+        if len(current_chunk) + len(item) + 1 < 2000:
+            current_chunk += item + "\n"
+        else:
+            chunks.append(current_chunk)
+            current_chunk = item + "\n"
+    
+    if current_chunk:
+        chunks.append(current_chunk)
+    
+    for i, chunk in enumerate(chunks):
+        if i == 0:
+            header = f"📄 Archivos disponibles ({total_files} archivos):\n\n"
+        else:
+            header = f"📄 Continuación ({i+1}/{len(chunks)}):\n\n"
+        
+        await client.send_message(message.from_user.id, header + chunk)
+        
 async def safe_call(func, *args, **kwargs):
     while True:
         try:
