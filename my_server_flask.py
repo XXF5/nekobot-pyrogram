@@ -252,6 +252,20 @@ def browse():
     organized_items = {}
     
     for item in all_items:
+        if item["type"] == "dir":
+            dir_rel_path = item["rel_path"]
+            if dir_rel_path == "":
+                dir_rel_path = "root"
+            
+            if dir_rel_path not in organized_items:
+                organized_items[dir_rel_path] = {
+                    "type": "dir",
+                    "items": [],
+                    "full_path": item["full_path"],
+                    "name": os.path.basename(item["full_path"]) if dir_rel_path != "root" else "root"
+                }
+    
+    for item in all_items:
         if item["type"] == "file":
             parent_dir = os.path.dirname(item["rel_path"])
             if parent_dir == "":
@@ -262,35 +276,17 @@ def browse():
                 organized_items[parent_dir] = {
                     "type": "dir",
                     "items": [],
-                    "full_path": parent_full_path
+                    "full_path": parent_full_path,
+                    "name": parent_dir if parent_dir != "root" else "root"
                 }
             
             organized_items[parent_dir]["items"].append(item)
-        else:
-            dir_name = item["name"]
-            dir_rel_path = item["rel_path"]
-            
-            if dir_rel_path not in organized_items:
-                organized_items[dir_rel_path] = {
-                    "type": "dir",
-                    "items": [],
-                    "full_path": item["full_path"]
-                }
-    
-    for item in all_items:
-        if item["type"] == "file":
-            parent_dir = os.path.dirname(item["rel_path"])
-            if parent_dir == "":
-                parent_dir = "root"
-            
-            if parent_dir in organized_items:
-                organized_items[parent_dir]["items"].append(item)
     
     return render_template_string(NEW_MAIN_TEMPLATE, 
                                 folders=organized_items, 
                                 user_level=user_level,
                                 total_files=total_files)
-
+    
 @explorer.route("/files", methods=["GET", "POST"])
 #login_required
 def list_files():
