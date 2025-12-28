@@ -220,6 +220,11 @@ def browse():
                         "full_path": full_path,
                         "index": None
                     })
+                    
+                    sub_items, file_count = list_files_recursive(
+                        full_path, base_path, prefix + name + "/", file_count
+                    )
+                    items.extend(sub_items)
                 else:
                     file_count += 1
                     size_mb = round(os.path.getsize(full_path) / (1024 * 1024), 2)
@@ -245,29 +250,41 @@ def browse():
     all_items.extend(items)
     
     organized_items = {}
-    for item in all_items:
-        if item["type"] == "dir":
-            dir_name = item["name"]
-            organized_items[dir_name] = {
-                "type": "dir",
-                "items": [],
-                "full_path": item["full_path"]
-            }
     
     for item in all_items:
         if item["type"] == "file":
             parent_dir = os.path.dirname(item["rel_path"])
-            if parent_dir == ".":
+            if parent_dir == "":
                 parent_dir = "root"
             
             if parent_dir not in organized_items:
+                parent_full_path = os.path.join(abs_base, parent_dir) if parent_dir != "root" else abs_base
                 organized_items[parent_dir] = {
                     "type": "dir",
                     "items": [],
-                    "full_path": os.path.join(abs_base, parent_dir) if parent_dir != "root" else abs_base
+                    "full_path": parent_full_path
                 }
             
             organized_items[parent_dir]["items"].append(item)
+        else:
+            dir_name = item["name"]
+            dir_rel_path = item["rel_path"]
+            
+            if dir_rel_path not in organized_items:
+                organized_items[dir_rel_path] = {
+                    "type": "dir",
+                    "items": [],
+                    "full_path": item["full_path"]
+                }
+    
+    for item in all_items:
+        if item["type"] == "file":
+            parent_dir = os.path.dirname(item["rel_path"])
+            if parent_dir == "":
+                parent_dir = "root"
+            
+            if parent_dir in organized_items:
+                organized_items[parent_dir]["items"].append(item)
     
     return render_template_string(NEW_MAIN_TEMPLATE, 
                                 folders=organized_items, 
@@ -275,7 +292,7 @@ def browse():
                                 total_files=total_files)
 
 @explorer.route("/files", methods=["GET", "POST"])
-@login_required
+#login_required
 def list_files():
     abs_base = os.path.abspath(BASE_DIR)
     
