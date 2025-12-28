@@ -6,7 +6,7 @@ from flask import Flask, request, send_from_directory, render_template_string, r
 from threading import Thread, Lock
 from command.torrets_tools import download_from_magnet_or_torrent, get_download_progress, cleanup_old_downloads
 from command.htools import crear_cbz_desde_fuente
-from my_flask_templates import LOGIN_TEMPLATE, NEW_MAIN_TEMPLATE, WEBUSERS_TEMPLATE, UTILS_TEMPLATE, DOWNLOADS_TEMPLATE, GALLERY_TEMPLATE, SEARCH_NH_TEMPLATE, SEARCH_3H_TEMPLATE, VIEW_NH_TEMPLATE, VIEW_3H_TEMPLATE
+from my_flask_templates import LOGIN_TEMPLATE, MANGA_TEMPLATE, NEW_MAIN_TEMPLATE, WEBUSERS_TEMPLATE, UTILS_TEMPLATE, DOWNLOADS_TEMPLATE, GALLERY_TEMPLATE, SEARCH_NH_TEMPLATE, SEARCH_3H_TEMPLATE, VIEW_NH_TEMPLATE, VIEW_3H_TEMPLATE
 import uuid
 from datetime import datetime
 import re
@@ -1192,5 +1192,75 @@ def help_page():
     help_text = f"# Guía de uso con CURL\n\n## Autenticación\nPrimero genera un token de autenticación:\ncurl \"{base_url}/auth?u=TU_USUARIO&p=TU_CONTRASEÑA\"\n\nO usa autenticación básica en cada request:\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Listar archivos recursivamente\ncurl \"{base_url}/files?token=TU_TOKEN\"\n# o\ncurl -u \"usuario:contraseña\" {base_url}/files\n\n## Descargar archivo\ncurl \"{base_url}/download?path=ruta/archivo.jpg&token=TU_TOKEN\" \\\n  -o \"archivo.jpg\"\n\n## Descargar desde 3Hentai (descarga directa)\ncurl \"{base_url}/api/d3h/CODIGO?token=TU_TOKEN\" \\\n  -o \"archivo.cbz\"\n\n## Crear CBZ desde códigos\n\n### Un solo código (nhentai, hentai3, hitomi)\n# nhentai\ncurl \"{base_url}/crear_cbz?codigo=177013&tipo=nh&token=TU_TOKEN\"\n\n# hentai3\ncurl \"{base_url}/crear_cbz?codigo=12345&tipo=h3&token=TU_TOKEN\"\n\n# hitomi\ncurl \"{base_url}/crear_cbz?codigo=abc123&tipo=hito&token=TU_TOKEN\"\n\n### Múltiples códigos (solo nhentai y hentai3)\n# nhentai múltiple\ncurl \"{base_url}/crear_cbz?codigo=177013,228922,309437&tipo=nh&token=TU_TOKEN\"\n\n# hentai3 múltiple\ncurl \"{base_url}/crear_cbz?codigo=12345,67890,54321&tipo=h3&token=TU_TOKEN\"\n\n## Descargar desde magnet link\ncurl \"{base_url}/magnet?magnet=magnet:?xt=urn:btih:TU_HASH&token=TU_TOKEN\"\n\n## Descargar desde MEGA\ncurl \"{base_url}/mega?mega_link=https://mega.nz/...&token=TU_TOKEN\"\n\n## Renombrar archivo/directorio\ncurl \"{base_url}/rename?old_path=ruta/vieja/archivo.txt&new_name=archivo_nuevo.txt&token=TU_TOKEN\"\n\n## Eliminar archivo/directorio\ncurl \"{base_url}/delete?path=ruta/a/eliminar&token=TU_TOKEN\"\n\n## Subir archivo (requiere POST)\ncurl -X POST \"{base_url}/upload?token=TU_TOKEN\" \\\n  -F \"file=@archivo_local.jpg\"\n\n## Notas:\n- Reemplaza `TU_TOKEN` con el token obtenido del endpoint `/auth`\n- Reemplaza `TU_USUARIO` y `TU_CONTRASEÑA` con tus credenciales\n- Las rutas deben estar dentro del directorio base permitido\n- Para hitomi solo se permite un código a la vez"
     return help_text, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
+
+from command.manga_downloader import MangaDexDownloader
+
+manga_downloader = MangaDexDownloader()
+
+@explorer.route("/manga", methods=["GET"])
+@login_required
+@level_required(1)
+def manga_page():
+    return render_template_string(MANGA_TEMPLATE)
+
+@explorer.route("/manga/download", methods=["POST"])
+@login_required
+@level_required(1)
+def manga_download():
+    try:
+        url = request.form.get("url", "").strip()
+        download_range = request.form.get("range", "all")
+        format_type = request.form.get("format", "cbz-volume")
+        start_value = request.form.get("start", "").strip()
+        end_value = request.form.get("end", "").strip()
+        
+        if not url:
+            return jsonify({"success": False, "message": "La URL está vacía"}), 400
+        
+        if not url.startswith("https://mangadex.org/"):
+            return jsonify({"success": False, "message": "URL inválida. Debe comenzar con https://mangadex.org/"}), 400
+        
+        download_id = manga_downloader.start_download(
+            url=url,
+            download_range=download_range,
+            format_type=format_type,
+            start_value=start_value if start_value else None,
+            end_value=end_value if end_value else None
+        )
+        
+        return jsonify({
+            "success": True,
+            "message": "Descarga iniciada correctamente",
+            "download_id": download_id
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+@explorer.route("/manga/status", methods=["GET"])
+@login_required
+@level_required(1)
+def manga_status():
+    download_id = request.args.get("id")
+    
+    if download_id:
+        status = manga_downloader.get_download_progress(download_id)
+        return jsonify(status)
+    else:
+        all_downloads = manga_downloader.get_all_downloads()
+        return jsonify(all_downloads)
+
+@explorer.route("/manga/cleanup", methods=["POST"])
+@login_required
+@level_required(4)
+def manga_cleanup():
+    try:
+        manga_downloader.cleanup_old_downloads()
+        return jsonify({"success": True, "message": "Limpieza completada"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
+
+
