@@ -38,8 +38,10 @@ cipher_suite = Fernet(fernet_key)
 
 doujin_downloads = {}
 mega_downloads = {}
+manga_downloads = {}
 doujin_lock = Lock()
 mega_lock = Lock()
+manga_lock = Lock()
 
 def encrypt_token(data):
     json_data = json.dumps(data)
@@ -288,7 +290,6 @@ def browse():
                                 total_files=total_files)
     
 @explorer.route("/files", methods=["GET", "POST"])
-#login_required
 def list_files():
     abs_base = os.path.abspath(BASE_DIR)
     
@@ -485,13 +486,14 @@ def utils_page():
 @level_required(1)
 def downloads_page():
     cleanup_old_downloads()
-    downloads = get_download_progress()
+    torrent_downloads = get_download_progress()
     
     current_time = datetime.now()
+    
     with doujin_lock:
         to_delete = []
         for download_id, download_info in doujin_downloads.items():
-            if download_info.get("state") == "completed" and "end_time" in download_info:
+            if download_info.get("state") in ["completed", "error"] and "end_time" in download_info:
                 end_time = datetime.fromisoformat(download_info["end_time"])
                 if (current_time - end_time).total_seconds() > 3600:
                     to_delete.append(download_id)
@@ -502,7 +504,7 @@ def downloads_page():
     with mega_lock:
         to_delete = []
         for download_id, download_info in mega_downloads.items():
-            if download_info.get("state") == "completed" and "end_time" in download_info:
+            if download_info.get("state") in ["completed", "error"] and "end_time" in download_info:
                 end_time = datetime.fromisoformat(download_info["end_time"])
                 if (current_time - end_time).total_seconds() > 3600:
                     to_delete.append(download_id)
@@ -510,10 +512,101 @@ def downloads_page():
         for download_id in to_delete:
             del mega_downloads[download_id]
     
+    with manga_lock:
+        to_delete = []
+        for download_id, download_info in manga_downloads.items():
+            if download_info.get("state") in ["completed", "error"] and "end_time" in download_info:
+                end_time = datetime.fromisoformat(download_info["end_time"])
+                if (current_time - end_time).total_seconds() > 3600:
+                    to_delete.append(download_id)
+        
+        for download_id in to_delete:
+            del manga_downloads[download_id]
+    
     return render_template_string(DOWNLOADS_TEMPLATE, 
-                                downloads=downloads, 
+                                downloads=torrent_downloads, 
                                 doujin_downloads=doujin_downloads,
-                                mega_downloads=mega_downloads)
+                                mega_downloads=mega_downloads,
+                                manga_downloads=manga_downloads)
+
+@explorer.route("/api/downloads/delete", methods=["POST"])
+@login_required
+@level_required(1)
+def delete_download():
+    try:
+        data = request.json
+        download_id = data.get("download_id")
+        download_type = data.get("type")
+        
+        if not download_id or not download_type:
+            return jsonify({"success": False, "message": "Faltan parámetros"}), 400
+        
+        deleted = False
+        
+        if download_type == "torrent":
+            from command.torrets_tools import delete_download as delete_torrent
+            deleted = delete_torrent(download_id)
+        elif download_type == "doujin":
+            with doujin_lock:
+                if download_id in doujin_downloads:
+                    del doujin_downloads[download_id]
+                    deleted = True
+        elif download_type == "mega":
+            with mega_lock:
+                if download_id in mega_downloads:
+                    del mega_downloads[download_id]
+                    deleted = True
+        elif download_type == "manga":
+            with manga_lock:
+                if download_id in manga_downloads:
+                    del manga_downloads[download_id]
+                    deleted = True
+        else:
+            return jsonify({"success": False, "message": "Tipo de descarga no válido"}), 400
+        
+        if deleted:
+            return jsonify({"success": True, "message": "Descarga eliminada"})
+        else:
+            return jsonify({"success": False, "message": "Descarga no encontrada"}), 404
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@explorer.route("/api/downloads/delete-all", methods=["POST"])
+@login_required
+@level_required(1)
+def delete_all_downloads():
+    try:
+        download_type = request.json.get("type", "all")
+        deleted_count = 0
+        
+        if download_type in ["all", "torrent"]:
+            from command.torrets_tools import cleanup_old_downloads
+            cleanup_old_downloads(hours=0)
+        
+        if download_type in ["all", "doujin"]:
+            with doujin_lock:
+                deleted_count += len(doujin_downloads)
+                doujin_downloads.clear()
+        
+        if download_type in ["all", "mega"]:
+            with mega_lock:
+                deleted_count += len(mega_downloads)
+                mega_downloads.clear()
+        
+        if download_type in ["all", "manga"]:
+            with manga_lock:
+                deleted_count += len(manga_downloads)
+                manga_downloads.clear()
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Eliminadas {deleted_count} descargas",
+            "count": deleted_count
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @explorer.route("/api/downloads", methods=["GET", "POST"])
 @login_required
@@ -521,7 +614,12 @@ def downloads_page():
 def api_downloads():
     cleanup_old_downloads()
     downloads = get_download_progress()
-    return jsonify({"torrents": downloads, "doujins": doujin_downloads, "mega": mega_downloads})
+    return jsonify({
+        "torrents": downloads, 
+        "doujins": doujin_downloads, 
+        "mega": mega_downloads,
+        "manga": manga_downloads
+    })
 
 @explorer.route("/download", methods=["GET", "POST"])
 def download():
@@ -657,6 +755,7 @@ def crear_cbz():
     return response_msg
 
 @explorer.route("/upload", methods=["GET", "POST"])
+@login_required
 def upload_file():
     if request.method == "GET":
         return '''
@@ -675,6 +774,104 @@ def upload_file():
         file.save(save_path)
         return redirect("/")
     return "Archivo inválido.", 400
+
+@explorer.route("/upload_file", methods=["POST"])
+@login_required
+@level_required(1)
+def handle_file_upload():
+    try:
+        destination_path = request.form.get("destination_path", "").strip()
+        custom_name = request.form.get("custom_name", "").strip()
+        files = request.files.getlist("files")
+        
+        if not files or not any(f.filename for f in files):
+            return jsonify({"success": False, "message": "Seleccionar un archivo es obligatorio"}), 400
+        
+        if destination_path:
+            if not validate_path(os.path.join(BASE_DIR, destination_path)):
+                return jsonify({"success": False, "message": "Ruta destino no válida"}), 400
+            save_dir = os.path.join(BASE_DIR, destination_path)
+        else:
+            save_dir = BASE_DIR
+        
+        os.makedirs(save_dir, exist_ok=True)
+        
+        uploaded_files = []
+        for file in files:
+            if file and file.filename:
+                if custom_name and len(files) == 1:
+                    filename = custom_name
+                else:
+                    filename = file.filename
+                
+                save_path = os.path.join(save_dir, filename)
+                
+                counter = 1
+                while os.path.exists(save_path):
+                    name, ext = os.path.splitext(filename)
+                    save_path = os.path.join(save_dir, f"{name}_{counter}{ext}")
+                    counter += 1
+                
+                file.save(save_path)
+                uploaded_files.append(os.path.basename(save_path))
+        
+        return jsonify({
+            "success": True,
+            "message": f"Subidos {len(uploaded_files)} archivos",
+            "files": uploaded_files
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@explorer.route("/download_file", methods=["POST"])
+@login_required
+@level_required(1)
+def handle_file_download():
+    try:
+        download_url = request.form.get("download_url", "").strip()
+        destination_path = request.form.get("destination_path", "").strip()
+        custom_name = request.form.get("custom_name", "").strip()
+        
+        if not download_url:
+            return jsonify({"success": False, "message": "El enlace está vacío"}), 400
+        
+        if destination_path:
+            if not validate_path(os.path.join(BASE_DIR, destination_path)):
+                return jsonify({"success": False, "message": "Ruta destino no válida"}), 400
+            save_dir = os.path.join(BASE_DIR, destination_path)
+        else:
+            save_dir = BASE_DIR
+        
+        os.makedirs(save_dir, exist_ok=True)
+        
+        if custom_name:
+            filename = custom_name
+        else:
+            filename = download_url.split("/")[-1].split("?")[0]
+            if not filename:
+                filename = "downloaded_file"
+        
+        save_path = os.path.join(save_dir, filename)
+        
+        response = requests.get(download_url, stream=True, timeout=30)
+        response.raise_for_status()
+        
+        with open(save_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        file_size = os.path.getsize(save_path)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Archivo descargado: {filename} ({file_size} bytes)",
+            "filename": filename,
+            "size": file_size
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @explorer.route("/mega", methods=["GET", "POST"])
 @login_required
@@ -1241,6 +1438,9 @@ def manga_download():
             end_value=end_value if end_value else None
         )
         
+        with manga_lock:
+            manga_downloads[download_id] = manga_downloader.get_download_progress(download_id)
+        
         return jsonify({
             "success": True,
             "message": "Descarga iniciada correctamente",
@@ -1258,9 +1458,14 @@ def manga_status():
     
     if download_id:
         status = manga_downloader.get_download_progress(download_id)
+        if download_id in manga_downloads:
+            manga_downloads[download_id] = status
         return jsonify(status)
     else:
         all_downloads = manga_downloader.get_all_downloads()
+        with manga_lock:
+            for download_id, download_info in all_downloads.items():
+                manga_downloads[download_id] = download_info
         return jsonify(all_downloads)
 
 @explorer.route("/manga/cleanup", methods=["POST"])
@@ -1275,5 +1480,3 @@ def manga_cleanup():
 
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
-
-
