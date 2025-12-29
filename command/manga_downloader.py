@@ -4,6 +4,8 @@ import uuid
 import json
 from datetime import datetime
 import re
+import glob
+import time
 
 class MangaDexDownloader:
     def __init__(self, base_path="vault_files/Mangas"):
@@ -30,10 +32,43 @@ class MangaDexDownloader:
     def get_download_progress(self, download_id):
         return self.downloads.get(download_id, {})
     
-    def build_command(self, url, download_range, format_type, start_value=None, end_value=None):
+    def detectar_formato_volumen(self, format_type):
+        formatos_volumen = ["cbz-volume", "pdf-volume", "raw-volume", "cb7-volume", "epub-volume"]
+        formatos_capitulo = ["cbz-single", "pdf-single", "raw-single", "cb7-single", "epub-single"]
+        
+        if format_type in formatos_volumen:
+            return "volumen"
+        elif format_type in formatos_capitulo:
+            return "capitulo"
+        else:
+            return "simple"
+    
+    def limpiar_archivos_incompletos(self, base_directory):
+        archivos_problema = []
+        formatos = ['.cbz', '.cb7', '.zip', '.pdf', '.epub']
+        
+        for root, dirs, files in os.walk(base_directory):
+            for file in files:
+                if any(file.endswith(fmt) for fmt in formatos):
+                    filepath = os.path.join(root, file)
+                    file_size = os.path.getsize(filepath)
+                    
+                    if file_size < 10240:
+                        try:
+                            os.remove(filepath)
+                            archivos_problema.append(file)
+                        except:
+                            pass
+        
+        return archivos_problema
+    
+    def build_command(self, url, download_range, format_type, start_value=None, end_value=None, reintento=False):
         cmd = ["mangadex-dl"]
         
         cmd.extend(["--path", self.base_path])
+        
+        if reintento:
+            cmd.extend(["--force", "true"])
         
         format_map = {
             "cbz": ["--save-as", "cbz"],
@@ -79,8 +114,22 @@ class MangaDexDownloader:
         
         return cmd
     
+    def cleanup_temp_files(self, directory):
+        temp_patterns = ['*.temp', '*.tmp', '*.*.part', '*.download']
+        archivos_eliminados = []
+        
+        for patron in temp_patterns:
+            for ruta_archivo in glob.glob(os.path.join(directory, '**', patron), recursive=True):
+                try:
+                    os.remove(ruta_archivo)
+                    archivos_eliminados.append(os.path.basename(ruta_archivo))
+                except OSError as e:
+                    pass
+        
+        return archivos_eliminados
+    
     def start_download(self, url, download_range="all", format_type="cbz-volume", 
-                      start_value=None, end_value=None):
+                      start_value=None, end_value=None, max_reintentos=2):
         download_id = str(uuid.uuid4())
         
         self.downloads[download_id] = {
@@ -95,76 +144,130 @@ class MangaDexDownloader:
             "message": "Iniciando descarga...",
             "start_time": datetime.now().isoformat(),
             "output": "",
-            "error": ""
+            "error": "",
+            "reintentos": 0,
+            "fallo_volumen": False
         }
         self.save_downloads()
         
-        cmd = self.build_command(url, download_range, format_type, start_value, end_value)
-        
         def run_download():
-            try:
-                self.downloads[download_id]["message"] = "Ejecutando comando..."
-                self.downloads[download_id]["command"] = " ".join(cmd)
-                self.save_downloads()
-                
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace'
-                )
-                
-                stdout_lines = []
-                stderr_lines = []
-                
-                while True:
-                    output = process.stdout.readline()
-                    if output:
-                        stdout_lines.append(output)
-                        self.downloads[download_id]["output"] += output
+            ultimo_error = None
+            es_formato_volumen = self.detectar_formato_volumen(format_type) == "volumen"
+            
+            for intento in range(max_reintentos + 1):
+                try:
+                    self.downloads[download_id]["message"] = f"Intentando descarga (intento {intento + 1})..."
+                    self.downloads[download_id]["reintentos"] = intento
+                    self.save_downloads()
+                    
+                    es_reintento = intento > 0
+                    
+                    if es_reintento and es_formato_volumen:
+                        self.downloads[download_id]["fallo_volumen"] = True
+                        self.downloads[download_id]["message"] = "⚠️  Formato por volumen detectado. Limpiando archivos incompletos..."
+                        self.save_downloads()
                         
-                        if "Downloading chapter" in output or "Progreso" in output:
-                            self.downloads[download_id]["message"] = output.strip()
+                        archivos_eliminados = self.limpiar_archivos_incompletos(self.base_path)
+                        self.cleanup_temp_files(self.base_path)
                         
-                        if "100%" in output:
-                            match = re.search(r'(\d+)%', output)
-                            if match:
-                                self.downloads[download_id]["progress"] = int(match.group(1))
+                        if archivos_eliminados:
+                            self.downloads[download_id]["message"] = f"⚠️  Eliminados {len(archivos_eliminados)} archivos incompletos"
+                            self.save_downloads()
+                    
+                    cmd = self.build_command(url, download_range, format_type, start_value, end_value, es_reintento)
+                    
+                    self.downloads[download_id]["command"] = " ".join(cmd)
+                    self.save_downloads()
+                    
+                    proceso = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        encoding='utf-8',
+                        errors='replace'
+                    )
+                    
+                    lineas_stdout = []
+                    lineas_stderr = []
+                    capitulo_actual = None
+                    
+                    while True:
+                        salida = proceso.stdout.readline()
+                        if salida:
+                            lineas_stdout.append(salida)
+                            self.downloads[download_id]["output"] += salida
+                            
+                            if "Downloading chapter" in salida:
+                                match = re.search(r'chapter\s+([\d\.]+)', salida, re.IGNORECASE)
+                                if match:
+                                    capitulo_actual = match.group(1)
+                                    self.downloads[download_id]["message"] = f"Descargando capítulo {capitulo_actual}"
+                            
+                            elif "Volume" in salida and "chapter" in salida.lower():
+                                match = re.search(r'Volume\s+([\d\.]+).*?chapter\s+([\d\.]+)', salida, re.IGNORECASE)
+                                if match:
+                                    volumen = match.group(1)
+                                    capitulo = match.group(2)
+                                    self.downloads[download_id]["message"] = f"Volumen {volumen} - Capítulo {capitulo}"
+                            
+                            elif "Progreso" in salida or "Progress" in salida:
+                                self.downloads[download_id]["message"] = salida.strip()
+                            
+                            if "100%" in salida:
+                                coincidencia = re.search(r'(\d+)%', salida)
+                                if coincidencia:
+                                    self.downloads[download_id]["progress"] = int(coincidencia.group(1))
+                            
+                            self.save_downloads()
+                        
+                        error = proceso.stderr.readline()
+                        if error:
+                            lineas_stderr.append(error)
+                            self.downloads[download_id]["error"] += error
+                            self.save_downloads()
+                        
+                        if salida == '' and error == '' and proceso.poll() is not None:
+                            break
+                    
+                    codigo_retorno = proceso.wait()
+                    
+                    if codigo_retorno == 0:
+                        self.downloads[download_id]["state"] = "completed"
+                        self.downloads[download_id]["message"] = "✅ Descarga completada"
+                        self.downloads[download_id]["progress"] = 100
+                        self.downloads[download_id]["end_time"] = datetime.now().isoformat()
+                        self.save_downloads()
+                        return
+                    
+                    else:
+                        ultimo_error = f"Proceso falló con código: {codigo_retorno}"
+                        
+                        if es_formato_volumen:
+                            self.downloads[download_id]["message"] = f"❌ Error en formato volumen. Se reiniciará completamente..."
+                        else:
+                            self.downloads[download_id]["message"] = f"❌ Falló, preparando reintento... ({ultimo_error})"
                         
                         self.save_downloads()
+                
+                except Exception as e:
+                    ultimo_error = str(e)
+                    self.downloads[download_id]["message"] = f"❌ Excepción, preparando reintento... ({ultimo_error})"
+                    self.save_downloads()
+                
+                if intento < max_reintentos:
+                    tiempo_espera = (intento + 1) * 20
+                    self.downloads[download_id]["message"] = f"⏸️  Esperando {tiempo_espera} segundos antes de reintentar..."
+                    self.save_downloads()
+                    time.sleep(tiempo_espera)
                     
-                    err = process.stderr.readline()
-                    if err:
-                        stderr_lines.append(err)
-                        self.downloads[download_id]["error"] += err
-                        self.save_downloads()
-                    
-                    if output == '' and err == '' and process.poll() is not None:
-                        break
-                
-                return_code = process.wait()
-                
-                if return_code == 0:
-                    self.downloads[download_id]["state"] = "completed"
-                    self.downloads[download_id]["message"] = "✅ Descarga completada"
-                    self.downloads[download_id]["progress"] = 100
-                else:
-                    self.downloads[download_id]["state"] = "error"
-                    self.downloads[download_id]["message"] = f"❌ Error en descarga (código: {return_code})"
-                
-                self.downloads[download_id]["end_time"] = datetime.now().isoformat()
-                self.downloads[download_id]["stdout"] = "".join(stdout_lines)
-                self.downloads[download_id]["stderr"] = "".join(stderr_lines)
-                self.save_downloads()
-                
-            except Exception as e:
-                self.downloads[download_id]["state"] = "error"
-                self.downloads[download_id]["message"] = f"❌ Excepción: {str(e)}"
-                self.downloads[download_id]["end_time"] = datetime.now().isoformat()
-                self.downloads[download_id]["error"] = str(e)
-                self.save_downloads()
+                    if es_formato_volumen:
+                        self.cleanup_temp_files(self.base_path)
+            
+            self.downloads[download_id]["state"] = "error"
+            self.downloads[download_id]["message"] = f"❌ Descarga falló después de {max_reintentos} reintentos. Último error: {ultimo_error}"
+            self.downloads[download_id]["end_time"] = datetime.now().isoformat()
+            self.save_downloads()
         
         import threading
         thread = threading.Thread(target=run_download)
@@ -172,6 +275,35 @@ class MangaDexDownloader:
         thread.start()
         
         return download_id
+    
+    def verificar_descargas_interrumpidas(self, horas=1):
+        tiempo_actual = datetime.now()
+        descargas_a_reintentar = []
+        
+        for download_id, download_info in self.downloads.items():
+            if download_info.get("state") == "processing":
+                if "start_time" in download_info:
+                    tiempo_inicio = datetime.fromisoformat(download_info["start_time"])
+                    if (tiempo_actual - tiempo_inicio).total_seconds() > horas * 3600:
+                        descargas_a_reintentar.append(download_id)
+        
+        for download_id in descargas_a_reintentar:
+            info = self.downloads[download_id]
+            
+            if self.detectar_formato_volumen(info["format"]) == "volumen":
+                self.downloads[download_id]["message"] = "🔄 Reiniciando descarga de volumen (formato detectado)"
+                self.save_downloads()
+            
+            self.start_download(
+                url=info["url"],
+                download_range=info["range"],
+                format_type=info["format"],
+                start_value=info["start"],
+                end_value=info["end"],
+                max_reintentos=5
+            )
+        
+        return len(descargas_a_reintentar)
     
     def cleanup_old_downloads(self, hours=24):
         current_time = datetime.now()
