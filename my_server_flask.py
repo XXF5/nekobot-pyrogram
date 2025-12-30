@@ -1870,5 +1870,68 @@ def api_list_cbz():
     
     cbz_files.sort(key=lambda x: natural_sort_key(x["name"]))
     return jsonify(cbz_files)
+
+@explorer.route("/create", methods=["GET"], defaults={'folder_name': None, 'subfolder_name': None})
+@explorer.route("/create/<folder_name>", methods=["GET"], defaults={'subfolder_name': None})
+@explorer.route("/create/<folder_name>/<subfolder_name>", methods=["GET"])
+@login_required
+@level_required(4)
+def create_folder(folder_name=None, subfolder_name=None):
+    if folder_name is not None:
+        parent_path = os.path.join(BASE_DIR, folder_name)
+        if subfolder_name is not None:
+            target_path = os.path.join(parent_path, subfolder_name)
+        else:
+            target_path = parent_path
+        if not validate_path(target_path):
+            return f"<h3>❌ Error: La ruta de creación '{target_path}' no es válida.</h3>", 403
+        try:
+            os.makedirs(target_path, exist_ok=True)
+            created_name = f"{folder_name}/{subfolder_name}" if subfolder_name else folder_name
+            return f"<h3>✅ Carpeta '{created_name}' creada exitosamente en vault_files.</h3>"
+        except Exception as e:
+            return f"<h3>❌ Error al crear la carpeta: {e}</h3>", 500
+
+    CREATE_TEMPLATE = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Crear Carpeta</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+            .container { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h2 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+            label { display: block; margin: 15px 0 5px; color: #555; font-weight: bold; }
+            input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+            button { background: #4CAF50; color: white; border: none; padding: 12px 20px; margin-top: 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; }
+            button:hover { background: #45a049; }
+            .note { background: #e8f5e9; padding: 10px; border-radius: 5px; margin-top: 20px; font-size: 0.9em; color: #2e7d32; }
+            .url-example { font-family: monospace; background: #f1f1f1; padding: 5px; border-radius: 3px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>📁 Crear Nueva Carpeta</h2>
+            <form method="POST" action="/create">
+                <label for="folder_name">Nombre de la carpeta:</label>
+                <input type="text" id="folder_name" name="folder_name" placeholder="Ej: mis_documentos" required>
+                <label for="folder_path">Ruta (opcional):</label>
+                <input type="text" id="folder_path" name="folder_path" placeholder="Ej: proyectos/2024">
+                <small>Dejar vacío para crear en la raíz de vault_files</small>
+                <button type="submit">Crear Carpeta</button>
+            </form>
+            <div class="note">
+                <p><strong>Nota:</strong> También puedes crear carpetas directamente mediante URL:</p>
+                <ul>
+                    <li>Crear <span class="url-example">example</span> en raíz: <br><span class="url-example">/create/example</span></li>
+                    <li>Crear <span class="url-example">step2</span> dentro de <span class="url-example">example</span>: <br><span class="url-example">/create/example/step2</span></li>
+                </ul>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(CREATE_TEMPLATE)
+
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
