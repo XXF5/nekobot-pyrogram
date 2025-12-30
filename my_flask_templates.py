@@ -421,10 +421,25 @@ NEW_MAIN_TEMPLATE = """
             modal.style.display = 'flex';
             document.getElementById('archiveName').value = `archivo_${Date.now()}`;
         }
-        
+
         function showMergeCbzDialog() {
-            const currentPath = window.location.pathname;
-            fetch(`/api/list_cbz?path=${encodeURIComponent(currentPath)}`)
+            const currentFolder = window.location.pathname;
+            let actualPath = "";
+            
+            if (currentFolder === "/" || currentFolder === "/browse") {
+                actualPath = "";
+            } else if (currentFolder.startsWith("/browse")) {
+                const match = currentFolder.match(/\/browse\?path=(.*)/);
+                if (match && match[1]) {
+                    actualPath = decodeURIComponent(match[1]);
+                } else {
+                    actualPath = "";
+                }
+            } else {
+                actualPath = currentFolder.replace(/^\//, "");
+            }
+            
+            fetch(`/api/list_cbz?path=${encodeURIComponent(actualPath)}`)
                 .then(response => response.json())
                 .then(cbzFiles => {
                     if (cbzFiles.length === 0) {
@@ -461,6 +476,10 @@ NEW_MAIN_TEMPLATE = """
                         dragClass: 'sortable-drag',
                         animation: 150
                     });
+                })
+                .catch(error => {
+                    console.error('Error al cargar CBZs:', error);
+                    alert('Error al cargar los archivos CBZ');
                 });
         }
         
