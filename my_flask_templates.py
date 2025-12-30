@@ -330,6 +330,7 @@ NEW_MAIN_TEMPLATE = """
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
     <script>
         let selectedItems = new Set();
+        let cbzFilesCache = [];
         
         function toggleFolder(folderName) {
             const content = document.getElementById('content-' + folderName);
@@ -422,65 +423,65 @@ NEW_MAIN_TEMPLATE = """
             document.getElementById('archiveName').value = `archivo_${Date.now()}`;
         }
 
-        function showMergeCbzDialog() {
-            const currentFolder = window.location.pathname;
-            let actualPath = "";
+        async function showMergeCbzDialog() {
+            const modal = document.getElementById('mergeCbzModal');
             
-            if (currentFolder === "/" || currentFolder === "/browse") {
-                actualPath = "";
-            } else if (currentFolder.startsWith("/browse")) {
-                const match = currentFolder.match(/\/browse\?path=(.*)/);
-                if (match && match[1]) {
-                    actualPath = decodeURIComponent(match[1]);
-                } else {
-                    actualPath = "";
-                }
-            } else {
-                actualPath = currentFolder.replace(/^\//, "");
+            if (selectedItems.size === 0) {
+                alert('Selecciona al menos un archivo CBZ');
+                return;
             }
             
-            fetch(`/api/list_cbz?path=${encodeURIComponent(actualPath)}`)
-                .then(response => response.json())
-                .then(cbzFiles => {
-                    if (cbzFiles.length === 0) {
-                        alert('No hay archivos CBZ en este directorio');
-                        return;
-                    }
-                    
-                    const modal = document.getElementById('mergeCbzModal');
-                    const list = document.getElementById('cbzList');
-                    list.innerHTML = '';
-                    
-                    cbzFiles.forEach(cbzFile => {
-                        const div = document.createElement('div');
-                        div.className = 'cbz-item';
-                        div.dataset.path = cbzFile.path;
-                        
-                        div.innerHTML = `
-                            <div class="cbz-item-handle">☰</div>
-                            <div class="cbz-item-name">${cbzFile.name}</div>
-                            <div class="cbz-item-checkbox">
-                                <input type="checkbox" onchange="toggleCbzSelection(this)">
-                            </div>
-                        `;
-                        
-                        list.appendChild(div);
+            const cbzFiles = [];
+            const selectedPaths = Array.from(selectedItems);
+            
+            for (const path of selectedPaths) {
+                if (path.toLowerCase().endsWith('.cbz')) {
+                    const name = path.split('/').pop();
+                    cbzFiles.push({
+                        path: path,
+                        name: name
                     });
-                    
-                    modal.style.display = 'flex';
-                    document.getElementById('mergedCbzName').value = `combinado_${Date.now()}.cbz`;
-                    
-                    Sortable.create(list, {
-                        handle: '.cbz-item-handle',
-                        ghostClass: 'sortable-ghost',
-                        dragClass: 'sortable-drag',
-                        animation: 150
-                    });
-                })
-                .catch(error => {
-                    console.error('Error al cargar CBZs:', error);
-                    alert('Error al cargar los archivos CBZ');
-                });
+                }
+            }
+            
+            if (cbzFiles.length === 0) {
+                alert('No hay archivos CBZ seleccionados');
+                return;
+            }
+            
+            if (cbzFiles.length < 2) {
+                alert('Selecciona al menos 2 archivos CBZ para combinar');
+                return;
+            }
+            
+            const list = document.getElementById('cbzList');
+            list.innerHTML = '';
+            
+            cbzFiles.forEach(cbzFile => {
+                const div = document.createElement('div');
+                div.className = 'cbz-item';
+                div.dataset.path = cbzFile.path;
+                
+                div.innerHTML = `
+                    <div class="cbz-item-handle">☰</div>
+                    <div class="cbz-item-name">${cbzFile.name}</div>
+                    <div class="cbz-item-checkbox">
+                        <input type="checkbox" checked onchange="toggleCbzSelection(this)">
+                    </div>
+                `;
+                
+                list.appendChild(div);
+            });
+            
+            modal.style.display = 'flex';
+            document.getElementById('mergedCbzName').value = `combinado_${Date.now()}.cbz`;
+            
+            Sortable.create(list, {
+                handle: '.cbz-item-handle',
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                animation: 150
+            });
         }
         
         function toggleCbzSelection(checkbox) {
@@ -808,7 +809,7 @@ NEW_MAIN_TEMPLATE = """
                 📦 Comprimir Seleccionados
             </button>
             <button class="bulk-btn btn-merge-cbz" onclick="showMergeCbzDialog()">
-                🔗 Combinar CBZ
+                🔗 Combinar CBZ (seleccionados)
             </button>
             <button class="bulk-btn btn-move-selected" onclick="showMoveDialog()" disabled>
                 ➡️ Mover Seleccionados
@@ -869,9 +870,10 @@ NEW_MAIN_TEMPLATE = """
     <div class="modal" id="mergeCbzModal">
         <div class="modal-content">
             <h3 class="modal-title">🔗 Combinar CBZs</h3>
-            <p>Selecciona y ordena los CBZs a combinar:</p>
+            <p>Selecciona y ordena los CBZs seleccionados:</p>
             
             <div class="cbz-selector" id="cbzList">
+                <!-- Los CBZ seleccionados se cargarán aquí -->
             </div>
             
             <p>Nombre del CBZ combinado:</p>
