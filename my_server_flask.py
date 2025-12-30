@@ -119,32 +119,48 @@ def validate_path(input_path):
     abs_path = os.path.abspath(input_path)
     return abs_path.startswith(abs_base)
 
-@explorer.route("/auth", methods=["GET", "POST"])
-def generate_token():
-    if request.method == "POST":
-        username = request.form.get("u", "").strip()
-        password = request.form.get("p", "").strip()
-    else:
-        username = request.args.get("u", "").strip()
-        password = request.args.get("p", "").strip()
+def check_empty_folder(folder_path):
+    """Verifica recursivamente si una carpeta está vacía (considera subcarpetas vacías)"""
+    if not os.path.isdir(folder_path):
+        return False
     
-    if not username or not password:
-        return jsonify({"error": "Usuario y contraseña requeridos"}), 400
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        if os.path.isdir(item_path):
+            if not check_empty_folder(item_path):
+                return False
+        else:
+            return False
     
-    if validate_credentials(username, password):
-        token_data = {
-            "user": username,
-            "pass": password,
-            "timestamp": datetime.now().isoformat()
-        }
-        token = encrypt_token(token_data)
-        return jsonify({
-            "token": token,
-            "message": "Token generado exitosamente",
-            "url_example": f"{request.host_url}?token={token}"
-        })
-    else:
-        return jsonify({"error": "Credenciales inválidas"}), 401
+    return True
+
+def delete_empty_folders(start_path):
+    """Elimina recursivamente todas las carpetas vacías"""
+    deleted_count = 0
+    
+    for root, dirs, files in os.walk(start_path, topdown=False):
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            if check_empty_folder(dir_path):
+                try:
+                    os.rmdir(dir_path)
+                    deleted_count += 1
+                except:
+                    pass
+    
+    return deleted_count
+
+def get_all_folders():
+    """Obtiene lista de todas las carpetas para el menú de mover"""
+    folders = ["/"]
+    
+    for root, dirs, files in os.walk(BASE_DIR):
+        for dir_name in dirs:
+            dir_path = os.path.join(root, dir_name)
+            rel_path = os.path.relpath(dir_path, BASE_DIR)
+            folders.append(rel_path)
+    
+    return sorted(set(folders))
 
 @explorer.route("/", defaults={"path": ""})
 @explorer.route("/<path:path>")
@@ -230,13 +246,15 @@ def browse():
                 else:
                     file_count += 1
                     size_mb = round(os.path.getsize(full_path) / (1024 * 1024), 2)
+                    ext = os.path.splitext(name)[1].lower()
                     items.append({
                         "type": "file",
                         "name": name,
                         "rel_path": rel_path,
                         "full_path": full_path,
                         "size_mb": size_mb,
-                        "index": file_count
+                        "index": file_count,
+                        "ext": ext
                     })
         
         except Exception:
@@ -264,7 +282,8 @@ def browse():
                     "type": "dir",
                     "items": [],
                     "full_path": item["full_path"],
-                    "name": os.path.basename(item["full_path"]) if dir_rel_path != "root" else "root"
+                    "name": os.path.basename(item["full_path"]) if dir_rel_path != "root" else "root",
+                    "has_images": False
                 }
     
     for item in all_items:
@@ -279,10 +298,15 @@ def browse():
                     "type": "dir",
                     "items": [],
                     "full_path": parent_full_path,
-                    "name": parent_dir if parent_dir != "root" else "root"
+                    "name": parent_dir if parent_dir != "root" else "root",
+                    "has_images": False
                 }
             
             organized_items[parent_dir]["items"].append(item)
+            
+            image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
+            if item["ext"] in image_extensions:
+                organized_items[parent_dir]["has_images"] = True
     
     return render_template_string(NEW_MAIN_TEMPLATE, 
                                 folders=organized_items, 
@@ -475,6 +499,42 @@ def gallery():
     except Exception as e:
         return f"<h3>Error al acceder a la galería: {e}</h3>", 500
 
+@explorer.route("/gallery_slideshow", methods=["GET", "POST"])
+@login_required
+def gallery_slideshow():
+    if request.method == "POST":
+        rel_path = request.form.get("path", "")
+    else:
+        rel_path = request.args.get("path", "")
+        
+    abs_requested = os.path.abspath(os.path.join(BASE_DIR, rel_path))
+    abs_base = os.path.abspath(BASE_DIR)
+
+    if not abs_requested.startswith(abs_base):
+        return "<h3>❌ Acceso denegado: ruta fuera de 'vault_files'.</h3>", 403
+
+    try:
+        image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
+        image_files = []
+        
+        for name in sorted(os.listdir(abs_requested), key=natural_sort_key):
+            full_path = os.path.join(abs_requested, name)
+            if os.path.isfile(full_path) and any(name.lower().endswith(ext) for ext in image_extensions):
+                image_files.append({
+                    "name": name,
+                    "url_path": f"/{os.path.relpath(full_path, abs_base)}"
+                })
+        
+        current_rel_path = os.path.relpath(abs_requested, abs_base)
+        if current_rel_path == ".":
+            current_rel_path = ""
+            
+        return render_template_string(GALLERY_TEMPLATE, 
+                                    image_files=image_files, 
+                                    current_path=current_rel_path)
+    except Exception as e:
+        return f"<h3>Error al acceder a la galería: {e}</h3>", 500
+
 @explorer.route("/utils", methods=["GET", "POST"])
 @login_required
 @level_required(1)
@@ -581,8 +641,7 @@ def delete_all_downloads():
         deleted_count = 0
         
         if download_type in ["all", "torrent"]:
-            from command.torrets_tools import cleanup_old_downloads
-            cleanup_old_downloads(hours=0)
+            cleanup_old_downloads()
         
         if download_type in ["all", "doujin"]:
             with doujin_lock:
@@ -1024,6 +1083,72 @@ def delete_file():
     except Exception as e:
         return f"<h3>Error al eliminar: {e}</h3>", 500
 
+@explorer.route("/delete_folder", methods=["POST"])
+@login_required
+@level_required(4)
+def delete_folder():
+    path = request.form.get("path")
+    
+    if not path or not validate_path(path):
+        return "<h3>❌ Ruta no válida.</h3>", 400
+    
+    if not os.path.isdir(path):
+        return "<h3>❌ No es una carpeta.</h3>", 400
+    
+    folder_name = os.path.basename(path)
+    
+    try:
+        shutil.rmtree(path)
+        return redirect("/")
+    except Exception as e:
+        return f"<h3>Error al eliminar carpeta: {e}</h3>", 500
+
+@explorer.route("/delete_empty_folders", methods=["POST"])
+@login_required
+@level_required(4)
+def delete_empty_folders_route():
+    try:
+        deleted_count = delete_empty_folders(BASE_DIR)
+        return f"<h3>✅ Eliminadas {deleted_count} carpetas vacías</h3>"
+    except Exception as e:
+        return f"<h3>Error al eliminar carpetas vacías: {e}</h3>", 500
+
+@explorer.route("/delete_multiple", methods=["POST"])
+@login_required
+@level_required(4)
+def delete_multiple():
+    items = request.form.getlist("items[]")
+    
+    if not items:
+        return "<h3>❌ No se seleccionaron elementos.</h3>", 400
+    
+    deleted_count = 0
+    errors = []
+    
+    for item_path in items:
+        if not validate_path(item_path):
+            errors.append(f"Ruta no válida: {item_path}")
+            continue
+        
+        if not os.path.exists(item_path):
+            errors.append(f"No existe: {item_path}")
+            continue
+        
+        try:
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+                deleted_count += 1
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+                deleted_count += 1
+        except Exception as e:
+            errors.append(f"Error eliminando {item_path}: {str(e)}")
+    
+    if errors:
+        return f"<h3>Eliminados {deleted_count} elementos, con errores:</h3><p>{'<br>'.join(errors)}</p>"
+    
+    return redirect("/")
+
 @explorer.route("/compress", methods=["GET", "POST"])
 @login_required
 @level_required(4)
@@ -1068,6 +1193,43 @@ def compress_items():
                     shutil.rmtree(path)
 
         return redirect(request.referrer or "/")
+    except Exception as e:
+        return f"<h3>❌ Error al comprimir: {e}</h3>", 500
+
+@explorer.route("/compress_multiple", methods=["POST"])
+@login_required
+@level_required(4)
+def compress_multiple():
+    archive_name = request.form.get("archive_name", "").strip()
+    selected = request.form.getlist("selected[]")
+    
+    if not archive_name:
+        return "<h3>❌ Debes proporcionar un nombre para el archivo.</h3>", 400
+    
+    if not selected:
+        return "<h3>❌ No se seleccionaron elementos.</h3>", 400
+    
+    for path in selected:
+        if not validate_path(path):
+            return "<h3>❌ Ruta no válida detectada.</h3>", 400
+    
+    archive_path = os.path.join(BASE_DIR, f"{archive_name}.7z")
+    
+    try:
+        cmd_args = [
+            os.path.join("7z", "7zz"),
+            'a',
+            '-mx=0',
+            '-v2000m',
+            archive_path
+        ] + selected
+        
+        result = subprocess.run(cmd_args, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            return f"<h3>❌ Error al comprimir: {result.stderr}</h3>", 500
+        
+        return redirect("/")
     except Exception as e:
         return f"<h3>❌ Error al comprimir: {e}</h3>", 500
 
@@ -1395,7 +1557,89 @@ def rename_item():
         return redirect("/")
     except Exception as e:
         return f"<h3>Error al renombrar: {e}</h3>", 500 
+
+@explorer.route("/move_items", methods=["POST"])
+@login_required
+@level_required(4)
+def move_items():
+    items = request.form.getlist("items[]")
+    target_folder = request.form.get("target_folder", "").strip()
+    
+    if not items:
+        return "<h3>❌ No se seleccionaron elementos.</h3>", 400
+    
+    if not target_folder:
+        return "<h3>❌ No se especificó la carpeta destino.</h3>", 400
+    
+    target_path = os.path.join(BASE_DIR, target_folder.lstrip('/'))
+    
+    if not validate_path(target_path):
+        return "<h3>❌ Ruta destino no válida.</h3>", 400
+    
+    os.makedirs(target_path, exist_ok=True)
+    
+    moved_count = 0
+    errors = []
+    
+    for item_path in items:
+        if not validate_path(item_path):
+            errors.append(f"Ruta origen no válida: {item_path}")
+            continue
         
+        if not os.path.exists(item_path):
+            errors.append(f"No existe: {item_path}")
+            continue
+        
+        item_name = os.path.basename(item_path)
+        target_item_path = os.path.join(target_path, item_name)
+        
+        try:
+            shutil.move(item_path, target_item_path)
+            moved_count += 1
+        except Exception as e:
+            errors.append(f"Error moviendo {item_name}: {str(e)}")
+    
+    if errors:
+        return f"<h3>Movidos {moved_count} elementos, con errores:</h3><p>{'<br>'.join(errors)}</p>"
+    
+    return redirect("/")
+
+@explorer.route("/api/folders", methods=["GET"])
+@login_required
+@level_required(4)
+def api_folders():
+    try:
+        folders = get_all_folders()
+        return jsonify(folders)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@explorer.route("/api/check_folder", methods=["GET"])
+@login_required
+@level_required(4)
+def api_check_folder():
+    path = request.args.get("path")
+    
+    if not path or not validate_path(path):
+        return jsonify({"error": "Ruta no válida"}), 400
+    
+    if not os.path.isdir(path):
+        return jsonify({"error": "No es una carpeta"}), 400
+    
+    has_content = False
+    
+    for item in os.listdir(path):
+        item_path = os.path.join(path, item)
+        if os.path.isfile(item_path):
+            has_content = True
+            break
+        elif os.path.isdir(item_path):
+            if not check_empty_folder(item_path):
+                has_content = True
+                break
+    
+    return jsonify({"has_content": has_content})
+
 @explorer.route("/help", methods=["GET"])
 def help_page():
     base_url = request.host_url.rstrip('/')
