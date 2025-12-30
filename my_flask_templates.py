@@ -1949,28 +1949,281 @@ NEW_MAIN_TEMPLATE = """
     <title>Explorador de Archivos</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body { font-family: Arial; margin: 0; padding: 20px; background: #f5f5f5; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; }
+        h1 { color: #333; margin-bottom: 20px; }
+        
         .folder { margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
-        .folder-header { background: #667eea; color: white; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .folder-header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 15px; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            transition: background 0.3s;
+        }
+        .folder-header:hover { background: linear-gradient(135deg, #5a6fd8 0%, #6a3f8f 100%); }
         .folder-content { padding: 15px; display: none; }
-        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        
+        .file-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #eee; 
+            transition: background 0.2s;
+        }
+        .file-item:hover { background: #f8f9fa; }
         .file-item:last-child { border-bottom: none; }
-        .file-index { background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 10px; }
-        .file-actions { display: flex; gap: 5px; }
-        .btn { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        
+        .file-info { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            flex: 1; 
+            min-width: 0;
+        }
+        .file-index { 
+            background: #667eea; 
+            color: white; 
+            padding: 2px 8px; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            flex-shrink: 0;
+        }
+        .file-name { 
+            flex: 1; 
+            min-width: 0; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .file-size { 
+            color: #666; 
+            font-size: 12px; 
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .file-type { 
+            color: #888; 
+            font-size: 11px; 
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+        
+        .file-actions { 
+            display: flex; 
+            gap: 8px; 
+            flex-shrink: 0;
+        }
+        
+        .action-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 28px;
+            justify-content: center;
+        }
         .btn-download { background: #28a745; color: white; }
+        .btn-download:hover { background: #218838; }
+        .btn-gallery { background: #17a2b8; color: white; }
+        .btn-gallery:hover { background: #138496; }
         .btn-rename { background: #ffc107; color: black; }
+        .btn-rename:hover { background: #e0a800; }
         .btn-delete { background: #dc3545; color: white; }
-        .rename-input { padding: 5px; border: 1px solid #ddd; border-radius: 4px; margin-right: 5px; }
-        .nav { margin-bottom: 20px; display: flex; gap: 10px; }
-        .nav a { color: #667eea; text-decoration: none; padding: 8px 16px; background: #f0f0f0; border-radius: 4px; }
-        .nav a:hover { background: #e0e0e0; }
-        .file-size { color: #666; font-size: 12px; }
-        .total-files { background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0; text-align: center; }
+        .btn-delete:hover { background: #c82333; }
+        .btn-compress { background: #6f42c1; color: white; }
+        .btn-compress:hover { background: #5a369c; }
+        .btn-move { background: #20c997; color: white; }
+        .btn-move:hover { background: #1ba87e; }
+        
+        .nav { 
+            margin-bottom: 20px; 
+            display: flex; 
+            gap: 10px; 
+            flex-wrap: wrap;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .nav a { 
+            color: white;
+            text-decoration: none; 
+            padding: 8px 16px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px; 
+            transition: transform 0.2s;
+        }
+        .nav a:hover {
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        .total-files { 
+            background: #e9ecef; 
+            padding: 12px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+            text-align: center;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .bulk-actions {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .bulk-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-select-all { background: #6c757d; color: white; }
+        .btn-select-all:hover { background: #5a6268; transform: translateY(-2px); }
+        .btn-delete-empty { background: #fd7e14; color: white; }
+        .btn-delete-empty:hover { background: #e06c10; transform: translateY(-2px); }
+        .btn-compress-selected { background: #6f42c1; color: white; }
+        .btn-compress-selected:hover { background: #5a369c; transform: translateY(-2px); }
+        .btn-move-selected { background: #20c997; color: white; }
+        .btn-move-selected:hover { background: #1ba87e; transform: translateY(-2px); }
+        .btn-delete-selected { background: #dc3545; color: white; }
+        .btn-delete-selected:hover { background: #c82333; transform: translateY(-2px); }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 15px;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-confirm { background: #28a745; color: white; }
+        .btn-cancel { background: #6c757d; color: white; }
+        
+        select, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        select:focus, input[type="text"]:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .folder-selector {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .folder-option {
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            transition: background 0.2s;
+        }
+        .folder-option:hover {
+            background: #f8f9fa;
+        }
+        .folder-option.selected {
+            background: #e3f2fd;
+            border-left: 4px solid #667eea;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .file-actions { flex-wrap: wrap; justify-content: flex-end; }
+            .action-btn { padding: 5px 8px; font-size: 11px; }
+            .nav { flex-direction: column; }
+            .nav a { text-align: center; }
+            .bulk-actions { flex-direction: column; }
+        }
     </style>
     <script>
+        let selectedItems = new Set();
+        
         function toggleFolder(folderName) {
             const content = document.getElementById('content-' + folderName);
             const icon = document.getElementById('icon-' + folderName);
@@ -1983,6 +2236,40 @@ NEW_MAIN_TEMPLATE = """
             }
         }
         
+        function selectItem(itemPath, checkbox) {
+            if (checkbox.checked) {
+                selectedItems.add(itemPath);
+            } else {
+                selectedItems.delete(itemPath);
+            }
+            updateBulkActions();
+        }
+        
+        function selectAllItems() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                if (checkbox.dataset.path) {
+                    selectedItems.add(checkbox.dataset.path);
+                }
+            });
+            updateBulkActions();
+        }
+        
+        function updateBulkActions() {
+            const count = selectedItems.size;
+            document.querySelectorAll('.bulk-btn').forEach(btn => {
+                if (btn.classList.contains('btn-select-all')) return;
+                btn.disabled = count === 0;
+            });
+            
+            if (count > 0) {
+                document.getElementById('selectedCount').textContent = ` (${count} seleccionados)`;
+            } else {
+                document.getElementById('selectedCount').textContent = '';
+            }
+        }
+        
         function showRenameInput(filePath, currentName) {
             const newName = prompt("Nuevo nombre:", currentName);
             if (newName && newName !== currentName) {
@@ -1992,6 +2279,185 @@ NEW_MAIN_TEMPLATE = """
                 form.submit();
             }
         }
+        
+        function showMoveDialog() {
+            if (selectedItems.size === 0) return;
+            
+            fetch('/api/folders')
+                .then(response => response.json())
+                .then(folders => {
+                    const modal = document.getElementById('moveModal');
+                    const list = document.getElementById('folderList');
+                    list.innerHTML = '';
+                    
+                    folders.forEach(folder => {
+                        const div = document.createElement('div');
+                        div.className = 'folder-option';
+                        div.textContent = folder;
+                        div.onclick = function() {
+                            document.querySelectorAll('.folder-option').forEach(el => el.classList.remove('selected'));
+                            this.classList.add('selected');
+                            document.getElementById('selectedFolder').value = folder;
+                        };
+                        list.appendChild(div);
+                    });
+                    
+                    modal.style.display = 'flex';
+                    document.getElementById('newFolderInput').style.display = 'none';
+                });
+        }
+        
+        function showCompressDialog() {
+            if (selectedItems.size === 0) return;
+            
+            const modal = document.getElementById('compressModal');
+            modal.style.display = 'flex';
+            document.getElementById('archiveName').value = `archivo_${Date.now()}`;
+        }
+        
+        function toggleNewFolderInput() {
+            const input = document.getElementById('newFolderInput');
+            input.style.display = input.style.display === 'none' ? 'block' : 'none';
+            if (input.style.display === 'block') {
+                document.getElementById('newFolderName').focus();
+                document.getElementById('selectedFolder').value = '';
+                document.querySelectorAll('.folder-option').forEach(el => el.classList.remove('selected'));
+            }
+        }
+        
+        function submitMove() {
+            const folder = document.getElementById('selectedFolder').value;
+            const newFolder = document.getElementById('newFolderName').value;
+            const targetFolder = newFolder || folder;
+            
+            if (!targetFolder) {
+                alert('Selecciona una carpeta o crea una nueva');
+                return;
+            }
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/move_items';
+            
+            selectedItems.forEach(itemPath => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'items[]';
+                input.value = itemPath;
+                form.appendChild(input);
+            });
+            
+            const targetInput = document.createElement('input');
+            targetInput.type = 'hidden';
+            targetInput.name = 'target_folder';
+            targetInput.value = targetFolder;
+            form.appendChild(targetInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        function submitCompress() {
+            const archiveName = document.getElementById('archiveName').value;
+            if (!archiveName) {
+                alert('Ingresa un nombre para el archivo');
+                return;
+            }
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/compress_multiple';
+            
+            selectedItems.forEach(itemPath => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected[]';
+                input.value = itemPath;
+                form.appendChild(input);
+            });
+            
+            const nameInput = document.createElement('input');
+            nameInput.type = 'hidden';
+            nameInput.name = 'archive_name';
+            nameInput.value = archiveName;
+            form.appendChild(nameInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        function deleteSelected() {
+            if (selectedItems.size === 0) return;
+            
+            if (!confirm(`¿Eliminar ${selectedItems.size} elemento(s) seleccionado(s)?`)) {
+                return;
+            }
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/delete_multiple';
+            
+            selectedItems.forEach(itemPath => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'items[]';
+                input.value = itemPath;
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        function deleteEmptyFolders() {
+            if (!confirm('¿Eliminar todas las carpetas vacías?')) {
+                return;
+            }
+            
+            fetch('/delete_empty_folders', { method: 'POST' })
+                .then(response => response.text())
+                .then(result => {
+                    alert(result);
+                    location.reload();
+                });
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function checkFolderContent(folderPath) {
+            return fetch(`/api/check_folder?path=${encodeURIComponent(folderPath)}`)
+                .then(response => response.json())
+                .then(data => data.has_content);
+        }
+        
+        function deleteFolder(folderPath, folderName) {
+            checkFolderContent(folderPath).then(hasContent => {
+                if (hasContent) {
+                    if (!confirm(`La carpeta "${folderName}" no está vacía. Si continúa, perderá el contenido. ¿Continuar?`)) {
+                        return;
+                    }
+                }
+                
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/delete_folder';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'path';
+                input.value = folderPath;
+                form.appendChild(input);
+                
+                document.body.appendChild(form);
+                form.submit();
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            updateBulkActions();
+        });
     </script>
 </head>
 <body>
@@ -2010,6 +2476,7 @@ NEW_MAIN_TEMPLATE = """
         
         <div class="total-files">
             <strong>Total de archivos: {{ total_files }}</strong>
+            <span id="selectedCount"></span>
         </div>
         
         <form id="rename-form" action="/rename" method="POST" style="display: none;">
@@ -2020,24 +2487,68 @@ NEW_MAIN_TEMPLATE = """
         {% for folder_name, folder_data in folders.items() %}
         <div class="folder">
             <div class="folder-header" onclick="toggleFolder('{{ folder_name }}')">
-                <span>📁 {{ folder_name }} ({{ folder_data["items"]|length }} archivos)</span>
-                <span id="icon-{{ folder_name }}">▶</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span>📁 {{ folder_name }} ({{ folder_data["items"]|length }} archivos)</span>
+                    {% if user_level >= 4 %}
+                    <div class="checkbox-item">
+                        <input type="checkbox" 
+                               data-path="{{ folder_data['full_path'] }}"
+                               onchange="selectItem('{{ folder_data['full_path'] }}', this)">
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    {% if folder_data["has_images"] %}
+                    <a href="/gallery?path={{ folder_name }}" class="action-btn btn-gallery" title="Abrir galería">🖼️</a>
+                    <a href="/gallery_slideshow?path={{ folder_name }}" class="action-btn btn-gallery" title="Vista deslizante">🎬</a>
+                    {% endif %}
+                    {% if user_level >= 4 %}
+                    <button class="action-btn btn-move" 
+                            onclick="showMoveDialog(); event.stopPropagation();" 
+                            title="Mover">➡️</button>
+                    <button class="action-btn btn-compress" 
+                            onclick="showCompressDialog(); event.stopPropagation();" 
+                            title="Comprimir">📦</button>
+                    <button class="action-btn btn-delete" 
+                            onclick="deleteFolder('{{ folder_data['full_path'] }}', '{{ folder_name }}'); event.stopPropagation();" 
+                            title="Borrar">🗑️</button>
+                    {% endif %}
+                    <span id="icon-{{ folder_name }}">▶</span>
+                </div>
             </div>
             <div class="folder-content" id="content-{{ folder_name }}">
                 {% for file in folder_data["items"] %}
                 <div class="file-item">
-                    <div style="display: flex; align-items: center;">
+                    <div class="file-info">
+                        {% if user_level >= 4 %}
+                        <div class="checkbox-item">
+                            <input type="checkbox" 
+                                   data-path="{{ file.full_path }}"
+                                   onchange="selectItem('{{ file.full_path }}', this)">
+                        </div>
+                        {% endif %}
                         <span class="file-index">{{ file.index }}</span>
-                        <span>{{ file.name }}</span>
+                        <span class="file-name">{{ file.name }}</span>
+                        <span class="file-type">{{ file.ext.upper() }}</span>
                         <span class="file-size">({{ file.size_mb }} MB)</span>
                     </div>
                     <div class="file-actions">
-                        <a href="/download?path={{ file.rel_path }}" class="btn btn-download" download>📥</a>
+                        <a href="/download?path={{ file.rel_path }}" class="action-btn btn-download" title="Descargar">📥</a>
                         {% if user_level >= 4 %}
-                        <button class="btn btn-rename" onclick="showRenameInput('{{ file.full_path }}', '{{ file.name }}')">✏️</button>
+                        <button class="action-btn btn-rename" 
+                                onclick="showRenameInput('{{ file.full_path }}', '{{ file.name }}')" 
+                                title="Renombrar">✏️</button>
+                        <button class="action-btn btn-move" 
+                                onclick="selectItem('{{ file.full_path }}', this.parentElement.parentElement.querySelector('input[type=\"checkbox\"]')); showMoveDialog();" 
+                                title="Mover">➡️</button>
+                        <button class="action-btn btn-compress" 
+                                onclick="selectItem('{{ file.full_path }}', this.parentElement.parentElement.querySelector('input[type=\"checkbox\"]')); showCompressDialog();" 
+                                title="Comprimir">📦</button>
                         <form action="/delete" method="POST" style="display: inline;">
                             <input type="hidden" name="path" value="{{ file.full_path }}">
-                            <button type="submit" class="btn btn-delete" onclick="return confirm('¿Eliminar {{ file.name }}?')">🗑️</button>
+                            <button type="submit" class="action-btn btn-delete" 
+                                    onclick="return confirm('¿Eliminar {{ file.name }}?')" 
+                                    title="Borrar">🗑️</button>
                         </form>
                         {% endif %}
                     </div>
@@ -2046,6 +2557,72 @@ NEW_MAIN_TEMPLATE = """
             </div>
         </div>
         {% endfor %}
+        
+        {% if user_level >= 4 %}
+        <div class="bulk-actions">
+            <button class="bulk-btn btn-select-all" onclick="selectAllItems()">
+                ☑️ Seleccionar Todos
+            </button>
+            <button class="bulk-btn btn-delete-empty" onclick="deleteEmptyFolders()">
+                🗑️ Borrar Carpetas Vacías
+            </button>
+            <button class="bulk-btn btn-compress-selected" onclick="showCompressDialog()" disabled>
+                📦 Comprimir Seleccionados
+            </button>
+            <button class="bulk-btn btn-move-selected" onclick="showMoveDialog()" disabled>
+                ➡️ Mover Seleccionados
+            </button>
+            <button class="bulk-btn btn-delete-selected" onclick="deleteSelected()" disabled>
+                🗑️ Borrar Seleccionados
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="modal" id="moveModal">
+        <div class="modal-content">
+            <h3 class="modal-title">📂 Mover elementos</h3>
+            <p>Selecciona la carpeta destino:</p>
+            
+            <div class="folder-selector" id="folderList">
+            </div>
+            
+            <button onclick="toggleNewFolderInput()" style="margin-bottom: 15px;">
+                📁 Nueva Carpeta
+            </button>
+            
+            <div id="newFolderInput" style="display: none; margin-bottom: 15px;">
+                <input type="text" id="newFolderName" placeholder="Nombre de la nueva carpeta">
+            </div>
+            
+            <input type="hidden" id="selectedFolder">
+            
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeModal('moveModal')">
+                    Cancelar
+                </button>
+                <button class="modal-btn btn-confirm" onclick="submitMove()">
+                    Aceptar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="compressModal">
+        <div class="modal-content">
+            <h3 class="modal-title">📦 Comprimir elementos</h3>
+            <p>Nombre del archivo comprimido:</p>
+            <input type="text" id="archiveName" placeholder="nombre_archivo" required>
+            
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeModal('compressModal')">
+                    Cancelar
+                </button>
+                <button class="modal-btn btn-confirm" onclick="submitCompress()">
+                    Confirmar
+                </button>
+            </div>
+        </div>
     </div>
 </body>
 </html>
@@ -2058,12 +2635,20 @@ GALLERY_TEMPLATE = """
     <title>Galería de Imágenes</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body { 
-            font-family: Arial; 
+            font-family: Arial, sans-serif; 
             margin: 0; 
             padding: 0; 
-            background-color: #f0f0f0;
+            background-color: #1a1a1a;
+            color: white;
         }
+        
         .header { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white; 
@@ -2072,85 +2657,287 @@ GALLERY_TEMPLATE = """
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
+        
         .header a { 
             color: white; 
             text-decoration: none;
             font-weight: bold;
             margin: 0 10px;
-            padding: 5px 10px;
-            border-radius: 4px;
+            padding: 8px 15px;
+            border-radius: 20px;
             background: rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+            display: inline-block;
         }
+        
         .header a:hover { 
             background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            text-decoration: none;
         }
+        
+        .view-selector {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+        
+        .view-btn {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        .view-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .view-btn.active {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
         .gallery-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
             padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
+        
         .gallery-item {
             position: relative;
             overflow: hidden;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            transition: transform 0.3s;
-            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: #2a2a2a;
+            aspect-ratio: 2/3;
         }
+        
         .gallery-item:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
         }
+        
         .gallery-item img {
             width: 100%;
-            height: 200px;
+            height: 100%;
             object-fit: cover;
             display: block;
+            transition: transform 0.5s ease;
         }
-        .gallery-item .caption {
-            padding: 10px;
-            text-align: center;
-            font-size: 0.9em;
-            color: #333;
+        
+        .gallery-item:hover img {
+            transform: scale(1.1);
+        }
+        
+        .gallery-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 15px 10px 10px;
+            font-size: 14px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-align: center;
         }
-        .back-button {
-            display: inline-block;
-            margin: 10px 20px;
-            padding: 8px 15px;
-            background: #667eea;
+        
+        .image-counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
             color: white;
-            text-decoration: none;
-            border-radius: 4px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
         }
-        .fullscreen {
+        
+        .slideshow-container {
+            display: none;
+            position: relative;
+            max-width: 100vw;
+            min-height: 100vh;
+            background: #000;
+        }
+        
+        .slideshow-image {
+            width: 100%;
+            height: 100vh;
+            object-fit: contain;
+            display: block;
+        }
+        
+        .slideshow-info {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 101;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s ease;
+        }
+        
+        .nav-buttons {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 101;
+        }
+        
+        .nav-btn {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-btn:hover {
+            background: rgba(102, 126, 234, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        .close-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 101;
+            transition: all 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            background: rgba(220, 53, 69, 0.8);
+            transform: rotate(90deg);
+        }
+        
+        .fullscreen-view {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .fullscreen-img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+        }
+        
+        .image-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s ease;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
-            cursor: pointer;
         }
-        .fullscreen img {
-            max-width: 90%;
-            max-height: 90%;
-            object-fit: contain;
+        
+        .image-nav:hover {
+            background: rgba(102, 126, 234, 0.8);
         }
-        .nav-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 10px 0;
+        
+        .image-nav.prev {
+            left: 20px;
+        }
+        
+        .image-nav.next {
+            right: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .gallery-container {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 10px;
+                padding: 10px;
+            }
+            
+            .header a {
+                margin: 5px;
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            
+            .nav-buttons {
+                bottom: 20px;
+                gap: 10px;
+            }
+            
+            .nav-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2162,39 +2949,236 @@ GALLERY_TEMPLATE = """
         <a href="/browse?path={{ current_path }}">📂 Volver al explorador</a>
     </div>
 
-    <div class="nav-buttons">
-        <a href="?path={{ current_path }}&view=grid" class="nav-btn">🖼️ Vista Cuadrícula</a>
-        <a href="?path={{ current_path }}&view=slideshow" class="nav-btn">🎬 Vista Presentación</a>
+    <div class="view-selector">
+        <button class="view-btn active" onclick="showGridView()">🖼️ Vista Cuadrícula</button>
+        <button class="view-btn" onclick="showSlideshowView()">🎬 Vista Deslizante</button>
     </div>
 
-    <div class="gallery-container">
+    <div class="gallery-container" id="gridView">
         {% for image in image_files %}
-        <div class="gallery-item" onclick="openFullscreen('{{ image.url_path }}')">
-            <img src="{{ image.url_path }}" alt="{{ image.name }}" loading="lazy">
-            <div class="caption">{{ image.name }}</div>
+        <div class="gallery-item" onclick="openFullscreen('{{ image.url_path }}', {{ loop.index0 }})">
+            <div class="image-counter">{{ loop.index }}/{{ image_files|length }}</div>
+            <img src="{{ image.url_path }}" 
+                 alt="{{ image.name }}" 
+                 loading="lazy"
+                 onerror="this.src='https://via.placeholder.com/250x375/333/666?text=Error'">
+            <div class="gallery-caption">{{ image.name }}</div>
         </div>
         {% endfor %}
     </div>
 
-    <div id="fullscreen-view" class="fullscreen" style="display:none;" onclick="closeFullscreen()">
-        <img id="fullscreen-img" src="">
+    <div class="slideshow-container" id="slideshowView">
+        <div class="slideshow-info">
+            <span id="currentSlide">1</span>/<span id="totalSlides">{{ image_files|length }}</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <button class="close-btn" onclick="hideSlideshow()">✕</button>
+        
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="prevSlide()">
+                ◀ Anterior
+            </button>
+            <button class="nav-btn" onclick="toggleAutoSlide()" id="autoSlideBtn">
+                ⏸️ Pausar
+            </button>
+            <button class="nav-btn" onclick="nextSlide()">
+                Siguiente ▶
+            </button>
+        </div>
+        
+        {% for image in image_files %}
+        <img src="{{ image.url_path }}" 
+             alt="{{ image.name }}"
+             class="slideshow-image"
+             style="display: none;"
+             data-index="{{ loop.index0 }}"
+             onerror="this.src='https://via.placeholder.com/1920x1080/333/666?text=Error'">
+        {% endfor %}
+    </div>
+
+    <div class="fullscreen-view" id="fullscreenView" onclick="closeFullscreen()">
+        <button class="close-btn" onclick="closeFullscreen()">✕</button>
+        <button class="image-nav prev" onclick="navigateFullscreen(-1); event.stopPropagation()">◀</button>
+        <img class="fullscreen-img" id="fullscreenImg" src="" onclick="event.stopPropagation()">
+        <button class="image-nav next" onclick="navigateFullscreen(1); event.stopPropagation()">▶</button>
+        <div class="slideshow-info" style="top: auto; bottom: 20px;">
+            <span id="fullscreenCurrent">1</span>/<span id="fullscreenTotal">{{ image_files|length }}</span>
+        </div>
     </div>
 
     <script>
-        function openFullscreen(src) {
-            document.getElementById('fullscreen-img').src = src;
-            document.getElementById('fullscreen-view').style.display = 'flex';
+        const imageFiles = {{ image_files|tojson }};
+        let currentSlideIndex = 0;
+        let autoSlideInterval;
+        let isAutoSliding = true;
+        let fullscreenIndex = 0;
+        
+        function showGridView() {
+            document.getElementById('gridView').style.display = 'grid';
+            document.getElementById('slideshowView').style.display = 'none';
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.view-btn')[0].classList.add('active');
+            stopAutoSlide();
+        }
+        
+        function showSlideshowView() {
+            document.getElementById('gridView').style.display = 'none';
+            document.getElementById('slideshowView').style.display = 'block';
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.view-btn')[1].classList.add('active');
+            showSlide(0);
+            startAutoSlide();
+        }
+        
+        function hideSlideshow() {
+            showGridView();
+        }
+        
+        function showSlide(index) {
+            if (index < 0) index = imageFiles.length - 1;
+            if (index >= imageFiles.length) index = 0;
+            
+            currentSlideIndex = index;
+            
+            document.querySelectorAll('.slideshow-image').forEach(img => img.style.display = 'none');
+            document.querySelectorAll(`.slideshow-image[data-index="${index}"]`).forEach(img => {
+                img.style.display = 'block';
+            });
+            
+            document.getElementById('currentSlide').textContent = index + 1;
+            document.getElementById('totalSlides').textContent = imageFiles.length;
+            
+            const progress = ((index + 1) / imageFiles.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+        
+        function prevSlide() {
+            showSlide(currentSlideIndex - 1);
+            resetAutoSlide();
+        }
+        
+        function nextSlide() {
+            showSlide(currentSlideIndex + 1);
+            resetAutoSlide();
+        }
+        
+        function startAutoSlide() {
+            if (autoSlideInterval) clearInterval(autoSlideInterval);
+            isAutoSliding = true;
+            document.getElementById('autoSlideBtn').innerHTML = '⏸️ Pausar';
+            autoSlideInterval = setInterval(nextSlide, 3000);
+        }
+        
+        function stopAutoSlide() {
+            if (autoSlideInterval) clearInterval(autoSlideInterval);
+            isAutoSliding = false;
+            document.getElementById('autoSlideBtn').innerHTML = '▶️ Reanudar';
+        }
+        
+        function toggleAutoSlide() {
+            if (isAutoSliding) {
+                stopAutoSlide();
+            } else {
+                startAutoSlide();
+            }
+        }
+        
+        function resetAutoSlide() {
+            if (isAutoSliding) {
+                clearInterval(autoSlideInterval);
+                autoSlideInterval = setInterval(nextSlide, 3000);
+            }
+        }
+        
+        function openFullscreen(src, index) {
+            fullscreenIndex = index;
+            const fullscreenView = document.getElementById('fullscreenView');
+            const fullscreenImg = document.getElementById('fullscreenImg');
+            
+            fullscreenImg.src = src;
+            document.getElementById('fullscreenCurrent').textContent = index + 1;
+            document.getElementById('fullscreenTotal').textContent = imageFiles.length;
+            
+            fullscreenView.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
         
         function closeFullscreen() {
-            document.getElementById('fullscreen-view').style.display = 'none';
+            document.getElementById('fullscreenView').style.display = 'none';
             document.body.style.overflow = 'auto';
         }
         
+        function navigateFullscreen(direction) {
+            fullscreenIndex += direction;
+            if (fullscreenIndex < 0) fullscreenIndex = imageFiles.length - 1;
+            if (fullscreenIndex >= imageFiles.length) fullscreenIndex = 0;
+            
+            openFullscreen(imageFiles[fullscreenIndex].url_path, fullscreenIndex);
+        }
+        
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeFullscreen();
+            if (document.getElementById('fullscreenView').style.display === 'flex') {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    navigateFullscreen(-1);
+                } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    navigateFullscreen(1);
+                } else if (e.key === 'Escape') {
+                    closeFullscreen();
+                }
+            }
+            
+            if (document.getElementById('slideshowView').style.display === 'block') {
+                if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                } else if (e.key === 'ArrowRight' || e.key === ' ') {
+                    nextSlide();
+                } else if (e.key === 'Escape') {
+                    hideSlideshow();
+                }
+            }
         });
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('slideshowView').addEventListener('wheel', function(e) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    prevSlide();
+                } else {
+                    nextSlide();
+                }
+            }, { passive: false });
+            
+            document.getElementById('slideshowView').addEventListener('click', function(e) {
+                if (e.clientX < window.innerWidth / 2) {
+                    prevSlide();
+                } else {
+                    nextSlide();
+                }
+            });
+            
+            document.getElementById('fullscreenView').addEventListener('wheel', function(e) {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    navigateFullscreen(-1);
+                } else {
+                    navigateFullscreen(1);
+                }
+            }, { passive: false });
+        });
+        
+        function preloadImages() {
+            imageFiles.forEach((image, index) => {
+                if (index < 5) {
+                    const img = new Image();
+                    img.src = image.url_path;
+                }
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', preloadImages);
     </script>
 </body>
 </html>
