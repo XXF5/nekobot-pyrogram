@@ -1722,5 +1722,143 @@ def manga_cleanup():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+@explorer.route("/create_cbz_from_folder", methods=["POST"])
+@login_required
+@level_required(4)
+def create_cbz_from_folder():
+    folder_path = request.form.get("folder_path")
+    
+    if not folder_path or not validate_path(folder_path):
+        return "<h3>❌ Ruta no válida.</h3>", 400
+    
+    if not os.path.isdir(folder_path):
+        return "<h3>❌ No es una carpeta.</h3>", 400
+    
+    folder_name = os.path.basename(folder_path)
+    parent_dir = os.path.dirname(folder_path)
+    
+    if parent_dir == BASE_DIR:
+        return "<h3>❌ No se puede crear CBZ en el directorio raíz.</h3>", 400
+    
+    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff'}
+    image_files = []
+    
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if any(file.lower().endswith(ext) for ext in image_extensions):
+                image_files.append(os.path.join(root, file))
+    
+    if not image_files:
+        return f"<h3>❌ No se encontraron imágenes en la carpeta '{folder_name}'.</h3>", 400
+    
+    image_files.sort(key=natural_sort_key)
+    
+    cbz_path = os.path.join(parent_dir, f"{folder_name}.cbz")
+    
+    counter = 1
+    while os.path.exists(cbz_path):
+        cbz_path = os.path.join(parent_dir, f"{folder_name}_{counter}.cbz")
+        counter += 1
+    
+    try:
+        with zipfile.ZipFile(cbz_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            image_counter = 1
+            for image_file in image_files:
+                rel_path = os.path.relpath(image_file, folder_path)
+                ext = os.path.splitext(image_file)[1].lower()
+                zip_filename = f"{str(image_counter).zfill(3)}{ext}"
+                zipf.write(image_file, zip_filename)
+                image_counter += 1
+        
+        return f"<h3>✅ CBZ creado exitosamente: {os.path.basename(cbz_path)}</h3><p>Contiene {len(image_files)} imágenes.</p>"
+    
+    except Exception as e:
+        return f"<h3>❌ Error al crear CBZ: {str(e)}</h3>", 500
+
+@explorer.route("/merge_cbz", methods=["POST"])
+@login_required
+@level_required(4)
+def merge_cbz():
+    cbz_files = request.form.getlist("cbz_files[]")
+    output_name = request.form.get("output_name", "").strip()
+    
+    if not cbz_files or len(cbz_files) < 2:
+        return "<h3>❌ Selecciona al menos 2 archivos CBZ.</h3>", 400
+    
+    if not output_name or not output_name.endswith('.cbz'):
+        return "<h3>❌ Nombre de salida inválido. Debe terminar en .cbz</h3>", 400
+    
+    for cbz_file in cbz_files:
+        if not validate_path(cbz_file):
+            return f"<h3>❌ Ruta no válida: {cbz_file}</h3>", 400
+        if not os.path.isfile(cbz_file):
+            return f"<h3>❌ Archivo no encontrado: {cbz_file}</h3>", 404
+    
+    parent_dir = os.path.dirname(cbz_files[0])
+    output_path = os.path.join(parent_dir, output_name)
+    
+    counter = 1
+    while os.path.exists(output_path):
+        name, ext = os.path.splitext(output_name)
+        output_path = os.path.join(parent_dir, f"{name}_{counter}{ext}")
+        counter += 1
+    
+    try:
+        with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as output_zip:
+            image_counter = 1
+            
+            for cbz_file in cbz_files:
+                try:
+                    with zipfile.ZipFile(cbz_file, 'r') as input_zip:
+                        for file_info in input_zip.infolist():
+                            if file_info.filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')):
+                                ext = os.path.splitext(file_info.filename)[1].lower()
+                                if not ext:
+                                    ext = '.jpg'
+                                
+                                new_filename = f"{str(image_counter).zfill(3)}{ext}"
+                                
+                                try:
+                                    file_data = input_zip.read(file_info.filename)
+                                    output_zip.writestr(new_filename, file_data)
+                                    image_counter += 1
+                                except:
+                                    continue
+                except:
+                    continue
+        
+        return f"<h3>✅ CBZ combinado creado exitosamente: {os.path.basename(output_path)}</h3><p>Contiene {image_counter-1} imágenes de {len(cbz_files)} CBZs.</p>"
+    
+    except Exception as e:
+        return f"<h3>❌ Error al combinar CBZs: {str(e)}</h3>", 500
+
+@explorer.route("/api/list_cbz", methods=["GET"])
+@login_required
+@level_required(4)
+def api_list_cbz():
+    path_param = request.args.get("path", "")
+    
+    if path_param:
+        abs_path = os.path.abspath(os.path.join(BASE_DIR, path_param.lstrip('/')))
+    else:
+        abs_path = BASE_DIR
+    
+    if not validate_path(abs_path):
+        return jsonify([])
+    
+    cbz_files = []
+    
+    for item in os.listdir(abs_path):
+        item_path = os.path.join(abs_path, item)
+        if os.path.isfile(item_path) and item.lower().endswith('.cbz'):
+            cbz_files.append({
+                "name": item,
+                "path": item_path,
+                "size": os.path.getsize(item_path)
+            })
+    
+    cbz_files.sort(key=lambda x: natural_sort_key(x["name"]))
+    return jsonify(cbz_files)
+
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
