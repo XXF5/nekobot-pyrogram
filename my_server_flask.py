@@ -1838,27 +1838,37 @@ def merge_cbz():
 def api_list_cbz():
     path_param = request.args.get("path", "")
     
-    if path_param:
-        abs_path = os.path.abspath(os.path.join(BASE_DIR, path_param.lstrip('/')))
+    if not path_param:
+        abs_path = os.path.abspath(BASE_DIR)
     else:
-        abs_path = BASE_DIR
+        abs_path = os.path.abspath(os.path.join(BASE_DIR, path_param.lstrip('/')))
     
     if not validate_path(abs_path):
+        return jsonify({"error": "Ruta no válida"}), 400
+    
+    if not os.path.exists(abs_path):
         return jsonify([])
+    
+    if not os.path.isdir(abs_path):
+        abs_path = os.path.dirname(abs_path)
     
     cbz_files = []
     
-    for item in os.listdir(abs_path):
-        item_path = os.path.join(abs_path, item)
-        if os.path.isfile(item_path) and item.lower().endswith('.cbz'):
-            cbz_files.append({
-                "name": item,
-                "path": item_path,
-                "size": os.path.getsize(item_path)
-            })
+    try:
+        for item in os.listdir(abs_path):
+            item_path = os.path.join(abs_path, item)
+            if os.path.isfile(item_path) and item.lower().endswith('.cbz'):
+                cbz_files.append({
+                    "name": item,
+                    "path": item_path,
+                    "size": os.path.getsize(item_path)
+                })
+    except FileNotFoundError:
+        return jsonify([])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     
     cbz_files.sort(key=lambda x: natural_sort_key(x["name"]))
     return jsonify(cbz_files)
-
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
