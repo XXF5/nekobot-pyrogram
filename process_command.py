@@ -64,7 +64,7 @@ async def send_thanks_response(client, message):
     await message.reply("Pero mi creador @nakigeplayer se siente feliz de que consideres la idea de agradecer al bot")
     await asyncio.sleep(1)
     await client.send_sticker(chat_id=message.chat.id, sticker=sticker2)
-async def process_command(client, message, user_id, username, chat_id, int_lvl):
+async def process_command(client, message, user_id, username, chat_id, int_lvl, bot_manager=None):
     bot_info = await client.get_me()
     me_bot_id = str(bot_info.id)
     
