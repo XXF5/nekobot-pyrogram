@@ -316,6 +316,12 @@ async def list_vault_files(client: Client, message: Message):
         await client.send_message(message.from_user.id, "📁 La carpeta está vacía o no existe.")
         return
     
+    def natural_sort_key(s):
+        if not isinstance(s, str):
+            s = str(s)
+        return [int(text) if text.isdigit() else text.lower() 
+                for text in re.split(r'(\d+)', s)]
+    
     def list_files_recursive(directory, base_path, prefix="", file_index_start=0):
         items = []
         file_count = file_index_start
