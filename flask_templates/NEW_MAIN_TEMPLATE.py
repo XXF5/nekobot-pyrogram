@@ -390,32 +390,6 @@ NEW_MAIN_TEMPLATE = """
             }
         }
         
-        function sendToTelegram(filePath, fileId, fileName) {
-            if (!confirm(`¿Enviar archivo "${fileName}" a Telegram?`)) {
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('file_path', filePath);
-            formData.append('file_id', fileId);
-            
-            fetch('/send_telegram', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            })
-            .catch(error => {
-                alert('Error de conexión: ' + error);
-            });
-        }
-        
         function showMoveDialog() {
             if (selectedItems.size === 0) return;
             
@@ -801,11 +775,7 @@ NEW_MAIN_TEMPLATE = """
                     </div>
                     <div class="file-actions">
                         <a href="/download?path={{ file.rel_path }}" class="action-btn btn-download" title="Descargar">📥</a>
-                        {% if telegram_sender and telegram_sender.is_available() and user_level >= 1 %}
-                        <a href="#" class="action-btn btn-telegram" 
-                           onclick="sendToTelegram('{{ file.full_path }}', '{{ file.index }}', '{{ file.name }}'); return false;" 
-                           title="Enviar a Telegram">📤</a>
-                        {% endif %}
+                        <a href="/send_telegram/{{ file.index }}" class="action-btn btn-telegram" title="Enviar a Telegram">📤</a>
                         {% if user_level >= 4 %}
                         <button class="action-btn btn-rename" 
                                 onclick="showRenameInput('{{ file.full_path }}', '{{ file.name }}')" 
@@ -906,7 +876,6 @@ NEW_MAIN_TEMPLATE = """
             <p>Selecciona y ordena los CBZs seleccionados:</p>
             
             <div class="cbz-selector" id="cbzList">
-                <!-- Los CBZ seleccionados se cargarán aquí -->
             </div>
             
             <p>Nombre del CBZ combinado:</p>
