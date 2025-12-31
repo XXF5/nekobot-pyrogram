@@ -91,7 +91,7 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl, 
     if command == "/start":
         from command.admintools import handle_start
         await asyncio.create_task(handle_start(client, message))
-
+    
     elif command == "/clone":
         if int_lvl == 6:
             if not bot_manager:
@@ -110,6 +110,8 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl, 
                     await message.reply("❌ Token inválido. Debe tener formato: 1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ")
                     return
                 
+                await message.reply(f"🔍 Intentando crear bot con token: {token[:10]}...")
+                
                 new_bot = await bot_manager.clone_bot(token)
                 
                 if new_bot:
@@ -118,9 +120,11 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl, 
                     await message.reply("❌ Error al crear el nuevo bot. Revisa el token y las credenciales.")
                     
             except Exception as e:
-                await message.reply(f"❌ Error: {str(e)}")
+                import traceback
+                error_details = traceback.format_exc()
+                await message.reply(f"❌ Error detallado:\n```\n{error_details}\n```")
         return
-
+    
     elif command == "/where":
         user_id_str = str(message.from_user.id) if message.from_user else "No disponible"
         chat_id_str = str(message.chat.id) if message.chat else "No disponible"
