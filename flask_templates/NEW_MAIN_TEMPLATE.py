@@ -1,4 +1,4 @@
-NEW_MAIN_TEMPLATE = """            
+NEW_MAIN_TEMPLATE = """
 <!doctype html>
 <html>
 <head>
@@ -801,10 +801,10 @@ NEW_MAIN_TEMPLATE = """
                     </div>
                     <div class="file-actions">
                         <a href="/download?path={{ file.rel_path }}" class="action-btn btn-download" title="Descargar">📥</a>
-                        {% if telegram_sender.is_available() and user_level >= 1 %}
+                        {% if telegram_sender and telegram_sender.is_available() and user_level >= 1 %}
                         <a href="#" class="action-btn btn-telegram" 
-                            onclick="sendToTelegram('{{ file.full_path }}', '{{ file.index }}', '{{ file.name }}'); return false;" 
-                            title="Enviar a Telegram">📤</a>
+                           onclick="sendToTelegram('{{ file.full_path }}', '{{ file.index }}', '{{ file.name }}'); return false;" 
+                           title="Enviar a Telegram">📤</a>
                         {% endif %}
                         {% if user_level >= 4 %}
                         <button class="action-btn btn-rename" 
