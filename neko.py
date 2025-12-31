@@ -86,27 +86,44 @@ class NekoBot:
     
     async def clone_bot(self, new_bot_token, api_id=None, api_hash=None):
         try:
+            print(f"[DEBUG] Intentando crear bot con token: {new_bot_token[:15]}...")
+            
             callbacks = self.setup_callbacks()
+            
+            api_id = api_id or self.args.api_id
+            api_hash = api_hash or self.args.api_hash
+            
+            print(f"[DEBUG] API ID: {api_id}")
+            print(f"[DEBUG] API Hash: {api_hash[:10]}...")
+            
+            new_client = Client(
+                f"bot_{new_bot_token[:10]}",
+                api_id=api_id,
+                api_hash=api_hash,
+                bot_token=new_bot_token,
+                sleep_threshold=5,
+                max_concurrent_transmissions=True
+            )
+            
             new_bot_interface = TelegramBotInterface(
-                client=None,
+                client=new_client,
                 args=self.args,
                 callbacks=callbacks
             )
             
-            new_bot = await new_bot_interface.add_bot_instance(
-                new_bot_token,
-                api_id=api_id,
-                api_hash=api_hash
-            )
+            print(f"[DEBUG] Iniciando bot...")
+            await new_bot_interface.start()
             
-            self.telegram_bots.append(new_bot)
+            self.telegram_bots.append(new_bot_interface)
             print(f"[+] Nuevo bot agregado con token: {new_bot_token[:10]}...")
-            return new_bot
+            return new_bot_interface
             
         except Exception as e:
-            print(f"[!] Error al clonar bot: {e}")
+            import traceback
+            print(f"[!] Error detallado al clonar bot:")
+            traceback.print_exc()
             return None
-    
+            
     def start_flask(self):
         self.flask_thread = threading.Thread(target=run_flask, daemon=True)
         self.flask_thread.start()
