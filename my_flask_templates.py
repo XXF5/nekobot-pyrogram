@@ -4,4 +4,8 @@ from flask_templates.LOGIN_TEMPLATE import LOGIN_TEMPLATE
 from flask_templates.UTILS_TEMPLATE import UTILS_TEMPLATE
 from flask_templates.DOWNLOADS_TEMPLATE import DOWNLOADS_TEMPLATE
 from flask_templates.GALLERY_TEMPLATE import GALLERY_TEMPLATE
+from flask_templates.SEARCH_NH_TEMPLATE import SEARCH_NH_TEMPLATE
+from flask_templates.SEARCH_3H_TEMPLATE import SEARCH_3H_TEMPLATE
+from flask_templates.VIEW_NH_TEMPLATE import VIEW_NH_TEMPLATE
+from flask_templates.VIEW_3H_TEMPLATE import VIEW_3H_TEMPLATE
 from flask_templates.WEBUSERS_TEMPLATE import WEBUSERS_TEMPLATE
