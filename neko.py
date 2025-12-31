@@ -4,6 +4,7 @@ import threading
 import logging
 import nest_asyncio
 from arg_parser import get_args
+from pyrogram import Client
 
 from telegram_bot_interface import TelegramBotInterface
 from my_server_flask import run_flask
