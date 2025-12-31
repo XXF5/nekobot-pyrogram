@@ -1,4 +1,4 @@
-NEW_MAIN_TEMPLATE = """
+NEW_MAIN_TEMPLATE = """            
 <!doctype html>
 <html>
 <head>
@@ -119,6 +119,8 @@ NEW_MAIN_TEMPLATE = """
         .btn-compress:hover { background: #5a369c; }
         .btn-move { background: #20c997; color: white; }
         .btn-move:hover { background: #1ba87e; }
+        .btn-telegram { background: #0088cc; color: white; }
+        .btn-telegram:hover { background: #0077b3; }
         
         .nav { 
             margin-bottom: 20px; 
@@ -386,6 +388,32 @@ NEW_MAIN_TEMPLATE = """
                 document.getElementById('new_name').value = newName;
                 form.submit();
             }
+        }
+        
+        function sendToTelegram(filePath, fileId, fileName) {
+            if (!confirm(`¿Enviar archivo "${fileName}" a Telegram?`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file_path', filePath);
+            formData.append('file_id', fileId);
+            
+            fetch('/send_telegram', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error de conexión: ' + error);
+            });
         }
         
         function showMoveDialog() {
@@ -773,6 +801,11 @@ NEW_MAIN_TEMPLATE = """
                     </div>
                     <div class="file-actions">
                         <a href="/download?path={{ file.rel_path }}" class="action-btn btn-download" title="Descargar">📥</a>
+                        {% if telegram_sender and user_level >= 1 %}
+                        <a href="#" class="action-btn btn-telegram" 
+                           onclick="sendToTelegram('{{ file.full_path }}', '{{ file.index }}', '{{ file.name }}'); return false;" 
+                           title="Enviar a Telegram">📤</a>
+                        {% endif %}
                         {% if user_level >= 4 %}
                         <button class="action-btn btn-rename" 
                                 onclick="showRenameInput('{{ file.full_path }}', '{{ file.name }}')" 
