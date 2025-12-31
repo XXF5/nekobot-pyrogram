@@ -2019,7 +2019,7 @@ def send_to_telegram():
         if not os.path.exists(file_path):
             return jsonify({"success": False, "message": "Archivo no encontrado"}), 404
         
-        if not telegram_sender:
+        if not telegram_sender.is_available():
             return jsonify({"success": False, "message": "Bot de Telegram no configurado"}), 500
         
         user_id = session.get("user_id")
@@ -2053,6 +2053,6 @@ def send_to_telegram():
         
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
-
+        
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
