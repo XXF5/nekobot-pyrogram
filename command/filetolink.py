@@ -528,6 +528,7 @@ async def send_vault_file_by_index(client, message):
 
                 mime_type, _ = mimetypes.guess_type(path)
                 mime_main = mime_type.split("/")[0] if mime_type else ""
+                filename = os.path.basename(path)
 
                 if size_mb > MAX_SIZE_MB and path.endswith('.7z'):
                     base_name = os.path.splitext(os.path.basename(path))[0]
