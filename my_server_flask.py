@@ -1933,5 +1933,126 @@ def create_folder(folder_name=None, subfolder_name=None):
     '''
     return render_template_string(CREATE_TEMPLATE)
 
+class TelegramSender:
+    def __init__(self):
+        self.token = None
+        self.base_url = None
+        self._initialize()
+    
+    def _initialize(self):
+        try:
+            from arg_parser import get_args
+            args = get_args()
+            self.token = args.bot_token
+            if self.token:
+                self.base_url = f"https://api.telegram.org/bot{self.token}"
+            else:
+                self.base_url = None
+        except Exception as e:
+            self.token = None
+            self.base_url = None
+    
+    def is_available(self):
+        return self.base_url is not None
+    
+    def _send_request(self, method, data=None, files=None):
+        if not self.base_url:
+            raise ValueError("Bot de Telegram no configurado")
+        url = f"{self.base_url}/{method}"
+        if files:
+            return requests.post(url, data=data, files=files)
+        return requests.post(url, json=data)
+    
+    def _prepare_file(self, file_value, field_name, data, files):
+        if file_value.startswith(('http://', 'https://')):
+            data[field_name] = file_value
+            return False
+        elif os.path.exists(file_value):
+            files[field_name] = open(file_value, 'rb')
+            return True
+        else:
+            data[field_name] = file_value
+            return False
+    
+    def send_message(self, chat_id, text, parse_mode=None, 
+                     disable_web_page_preview=False, disable_notification=False,
+                     protect_content=False, reply_to_message_id=None, 
+                     allow_sending_without_reply=False, reply_markup=None):
+        
+        if not self.is_available():
+            raise ValueError("Bot de Telegram no configurado")
+        
+        data = {
+            "chat_id": chat_id,
+            "text": text,
+            "disable_web_page_preview": disable_web_page_preview,
+            "disable_notification": disable_notification,
+            "protect_content": protect_content
+        }
+        
+        if parse_mode:
+            data["parse_mode"] = parse_mode
+        if reply_to_message_id:
+            data["reply_to_message_id"] = reply_to_message_id
+            data["allow_sending_without_reply"] = allow_sending_without_reply
+        if reply_markup:
+            data["reply_markup"] = json.dumps(reply_markup)
+        
+        return self._send_request("sendMessage", data)
+
+telegram_sender = TelegramSender()
+
+@explorer.route("/send_telegram", methods=["POST"])
+@login_required
+@level_required(1)
+def send_to_telegram():
+    try:
+        file_path = request.form.get("file_path")
+        file_id = request.form.get("file_id")
+        
+        if not file_path or not file_id:
+            return jsonify({"success": False, "message": "Ruta o ID de archivo no proporcionados"}), 400
+        
+        if not validate_path(file_path):
+            return jsonify({"success": False, "message": "Ruta no válida"}), 400
+        
+        if not os.path.exists(file_path):
+            return jsonify({"success": False, "message": "Archivo no encontrado"}), 404
+        
+        if not telegram_sender:
+            return jsonify({"success": False, "message": "Bot de Telegram no configurado"}), 500
+        
+        user_id = session.get("user_id")
+        if not user_id:
+            return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
+        
+        try:
+            chat_id = int(user_id)
+        except ValueError:
+            return jsonify({"success": False, "message": "ID de usuario no válido"}), 400
+        
+        message_text = f"/sendfile {file_id}"
+        
+        response = telegram_sender.send_message(
+            chat_id=chat_id,
+            text=message_text
+        )
+        
+        if response.status_code == 200:
+            return jsonify({
+                "success": True,
+                "message": f"Archivo '{os.path.basename(file_path)}' enviado a Telegram"
+            })
+        else:
+            error_data = response.json()
+            error_msg = error_data.get('description', 'Error desconocido')
+            return jsonify({
+                "success": False,
+                "message": f"Error al enviar a Telegram: {error_msg}"
+            }), 500
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
