@@ -1,4 +1,3 @@
-
 import time
 import asyncio
 import random
@@ -78,6 +77,7 @@ class TelegramBotInterface:
         if await self._handle_sleep_logic(message, chat_id):
             return
 
+        bot_manager = self.callbacks.get('get_bot_manager', lambda: None)()
         await self.callbacks['process_command'](client, message, user_id, username, chat_id)
 
     async def _handle_callback(self, client, callback_query):
