@@ -172,10 +172,16 @@ class TelegramBotInterface:
                 return 0
 
     async def start(self):
-        await self.app.start()
-        self.setup_handlers()
-        print("Bot de Telegram iniciado.")
-
+        try:
+            await self.app.start()
+            self.setup_handlers()
+            me = await self.app.get_me()
+            print(f"Bot iniciado: @{me.username}")
+            return True
+        except Exception as e:
+            print(f"Error al iniciar bot: {e}")
+            return False
+            
     async def stop(self):
         await self.app.stop()
 
