@@ -1,9 +1,9 @@
+
 import time
 import asyncio
 import random
 import sqlite3
 import os
-
 from pyrogram import Client, filters
 
 class TelegramBotInterface:
@@ -88,7 +88,7 @@ class TelegramBotInterface:
         group_ids = list(map(int, raw_group_ids.split(","))) if isinstance(raw_group_ids, str) else raw_group_ids
 
         raw_black_words = getattr(self.args, "black_words", []) or []
-        black_words = raw_black_words.split(",") if isinstance(raw_group_ids, str) else raw_group_ids
+        black_words = raw_black_words.split(",") if isinstance(raw_black_words, str) else raw_black_words
 
         raw_free_users = getattr(self.args, "free_users", []) or []
         free_users = list(map(int, raw_free_users.split(","))) if isinstance(raw_free_users, str) else raw_free_users
@@ -113,13 +113,11 @@ class TelegramBotInterface:
             if should_block and not (is_anonymous or user_id in free_users):
                 try:
                     await message.delete()
-                    return
                 except Exception:
                     pass
 
     async def _handle_sleep_logic(self, message, chat_id):
         from data.stickers import STICKER_DESCANSO, STICKER_REACTIVADO
-        from command.db.db import load_user_config
         
         lvl_to_use = await self._get_user_level(message)
         
