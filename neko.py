@@ -12,6 +12,7 @@ import sys
 from flask import Flask, send_from_directory, request, render_template_string
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ChatType
 
 from process_command import process_command
 from command.db.db import save_user_data_to_db, load_user_config
@@ -132,38 +133,47 @@ async def handle_message(client, message):
             except Exception:
                 pass
 
-    try:
-        lvl_user = load_user_config(user_id, "lvl") if user_id else None
-        int_lvl_user = int(lvl_user) if lvl_user and lvl_user.isdigit() else 0
-    except Exception:
-        return
+    if args.bot_token:
+        if user_id and args.bot_token:
+            token_user_id = int(args.bot_token.split(':')[0])
+            if user_id == token_user_id:
+                user_id = None
 
-    if int_lvl_user < 2:
+    lvl_to_use = None
+    if user_id:
+        try:
+            lvl_user = load_user_config(user_id, "lvl")
+            int_lvl_user = int(lvl_user) if lvl_user and lvl_user.isdigit() else 0
+            lvl_to_use = int_lvl_user
+        except Exception:
+            return
+    else:
         try:
             lvl_group = load_user_config(chat_id, "lvl")
             int_lvl_group = int(lvl_group) if lvl_group and lvl_group.isdigit() else 0
+            lvl_to_use = int_lvl_group
         except Exception:
             return
 
-        if int_lvl_group < 2:
-            return
+    if lvl_to_use < 2:
+        return
 
     if is_anonymous and not is_bot_public():
         return
 
-    if not is_anonymous and not is_bot_public() and int_lvl_user < 2:
+    if not is_anonymous and not is_bot_public() and lvl_to_use < 2:
         return
 
     if not is_anonymous and is_bot_public():
-        if lvl_user is None or (lvl_user not in ["1", "2", "3", "4", "5", "6"] and int_lvl_user < 2):
+        if lvl_to_use < 2:
             try:
                 save_user_data_to_db(user_id, "lvl", "1")
                 await message.reply("Registrado como usuario público, disfrute del bot")
-                int_lvl_user = 1
+                lvl_to_use = 1
             except Exception:
                 pass
 
-    if message.text and message.text.startswith("/reactive") and int_lvl_user == 6:
+    if message.text and message.text.startswith("/reactive") and lvl_to_use == 6:
         if bot_is_sleeping:
             bot_is_sleeping = False
             await app.send_sticker(chat_id, sticker=random.choice(STICKER_REACTIVADO))
@@ -176,7 +186,7 @@ async def handle_message(client, message):
         await message.reply(f"Actualmente estoy descansando, no recibo comandos.\n\nRegresaré en {format_time(remaining)}")
         return
 
-    if message.text and message.text.startswith("/sleep") and int_lvl_user == 6:
+    if message.text and message.text.startswith("/sleep") and lvl_to_use == 6:
         try:
             sleep_duration = int(message.text.split(" ")[1])
             bot_is_sleeping = True
@@ -190,12 +200,12 @@ async def handle_message(client, message):
             await message.reply("Por favor, proporciona un número válido en segundos.")
         return
 
-    if message.text and message.text.startswith("/flaskreset") and int_lvl_user >= 5:
+    if message.text and message.text.startswith("/flaskreset") and lvl_to_use >= 5:
         restart_flask()
         await message.reply("Servidor Flask reiniciado.")
         return
 
-    await process_command(client, message, user_id, username, chat_id, int_lvl_user)
+    await process_command(client, message, user_id, username, chat_id, lvl_to_use)
         
 @app.on_callback_query()
 async def callback_handler(client, callback_query):
