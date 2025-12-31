@@ -2002,34 +2002,25 @@ class TelegramSender:
 
 telegram_sender = TelegramSender()
 
-@explorer.route("/send_telegram", methods=["POST"])
+@explorer.route("/send_telegram/<file_id>")
 @login_required
 @level_required(1)
-def send_to_telegram():
+def send_to_telegram(file_id):
     try:
-        file_path = request.form.get("file_path")
-        file_id = request.form.get("file_id")
-        
-        if not file_path or not file_id:
-            return jsonify({"success": False, "message": "Ruta o ID de archivo no proporcionados"}), 400
-        
-        if not validate_path(file_path):
-            return jsonify({"success": False, "message": "Ruta no válida"}), 400
-        
-        if not os.path.exists(file_path):
-            return jsonify({"success": False, "message": "Archivo no encontrado"}), 404
+        if not file_id:
+            return "<h3>❌ ID de archivo no proporcionado.</h3>", 400
         
         if not telegram_sender.is_available():
-            return jsonify({"success": False, "message": "Bot de Telegram no configurado"}), 500
+            return "<h3>❌ Bot de Telegram no configurado.</h3>", 500
         
         user_id = session.get("user_id")
         if not user_id:
-            return jsonify({"success": False, "message": "Usuario no autenticado"}), 401
+            return "<h3>❌ Usuario no autenticado.</h3>", 401
         
         try:
             chat_id = int(user_id)
         except ValueError:
-            return jsonify({"success": False, "message": "ID de usuario no válido"}), 400
+            return "<h3>❌ ID de usuario no válido.</h3>", 400
         
         message_text = f"/sendfile {file_id}"
         
@@ -2039,20 +2030,14 @@ def send_to_telegram():
         )
         
         if response.status_code == 200:
-            return jsonify({
-                "success": True,
-                "message": f"Archivo '{os.path.basename(file_path)}' enviado a Telegram"
-            })
+            return f"<h3>✅ Archivo {file_id} enviado a Telegram</h3><p><a href='/'>Volver al explorador</a></p>"
         else:
             error_data = response.json()
             error_msg = error_data.get('description', 'Error desconocido')
-            return jsonify({
-                "success": False,
-                "message": f"Error al enviar a Telegram: {error_msg}"
-            }), 500
+            return f"<h3>❌ Error al enviar a Telegram: {error_msg}</h3>", 500
         
     except Exception as e:
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
-        
+        return f"<h3>Error: {str(e)}</h3>", 500
+
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
