@@ -95,36 +95,36 @@ async def process_command(client, message, user_id, username, chat_id, int_lvl, 
     elif command == "/clone":
         if int_lvl == 6:
             if not bot_manager:
-                await message.reply("❌ Bot manager no disponible.")
+                await message.reply("Bot manager no disponible.")
                 return
                 
             parts = text.strip().split(maxsplit=1)
             if len(parts) < 2:
-                await message.reply("❌ Debes proporcionar un token.\nUso: /clone <token_bot>")
+                await message.reply("Debes proporcionar un token.")
                 return
             
             token = parts[1].strip()
             
             try:
                 if ":" not in token:
-                    await message.reply("❌ Token inválido. Debe tener formato: 1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                    await message.reply("Token inválido.")
                     return
                 
-                await message.reply(f"🔍 Intentando crear bot con token: {token[:10]}...")
+                msg = await message.reply("Conectando bot...")
                 
                 new_bot = await bot_manager.clone_bot(token)
                 
                 if new_bot:
-                    await message.reply(f"✅ Nuevo bot creado exitosamente con token: {token[:15]}...")
+                    bot_info = await new_bot.app.get_me()
+                    await msg.edit(f"✅ Bot creado: @{bot_info.username}")
                 else:
-                    await message.reply("❌ Error al crear el nuevo bot. Revisa el token y las credenciales.")
+                    await msg.edit("❌ Error al conectar el bot")
                     
             except Exception as e:
-                import traceback
-                error_details = traceback.format_exc()
-                await message.reply(f"❌ Error detallado:\n```\n{error_details}\n```")
+                error_msg = str(e)
+                await message.reply(f"Error: {error_msg}")
         return
-    
+        
     elif command == "/where":
         user_id_str = str(message.from_user.id) if message.from_user else "No disponible"
         chat_id_str = str(message.chat.id) if message.chat else "No disponible"
