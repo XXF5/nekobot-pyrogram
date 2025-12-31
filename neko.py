@@ -9,8 +9,6 @@ from pyrogram import Client
 from telegram_bot_interface import TelegramBotInterface
 from my_server_flask import run_flask
 from start_bot import start_data, start_data_2
-from process_command import process_command
-from process_query import process_query
 
 nest_asyncio.apply()
 
@@ -28,7 +26,8 @@ class NekoBot:
     def setup_callbacks(self):
         return {
             'process_command': self.process_command_callback,
-            'process_query': self.process_query_callback
+            'process_query': self.process_query_callback,
+            'get_bot_manager': lambda: self
         }
     
     async def process_command_callback(self, client, message, user_id, username, chat_id):
@@ -49,9 +48,14 @@ class NekoBot:
             except Exception:
                 return
         
-        await process_command(client, message, user_id, username, chat_id, lvl_to_use)
+        await self.process_command_with_manager(client, message, user_id, username, chat_id, lvl_to_use)
+    
+    async def process_command_with_manager(self, client, message, user_id, username, chat_id, lvl_to_use):
+        from process_command import process_command
+        await process_command(client, message, user_id, username, chat_id, lvl_to_use, self)
     
     async def process_query_callback(self, client, callback_query):
+        from process_query import process_query
         await process_query(client, callback_query)
     
     def initialize_main_bot(self):
@@ -137,7 +141,10 @@ class NekoBot:
             except Exception as e:
                 print(f"[!] Error al detener bot: {e}")
 
+bot_manager = None
+
 async def main():
+    global bot_manager
     bot_manager = NekoBot()
     
     try:
