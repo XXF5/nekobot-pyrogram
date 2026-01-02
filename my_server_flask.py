@@ -2117,5 +2117,165 @@ def send_to_telegram(file_id):
     except Exception as e:
         return f"<h3>Error: {str(e)}</h3>", 500
 
+@explorer.route("/api/json/snh", methods=["GET"])
+@login_required
+def search_nhentai_json():
+    search_term = request.args.get("q", "").strip()
+    page = request.args.get("p", "1")
+    
+    try:
+        page = int(page)
+    except:
+        page = 1
+    
+    if not search_term:
+        return jsonify({
+            "success": False,
+            "error": "Se requiere parámetro 'q' (término de búsqueda)"
+        }), 400
+    
+    try:
+        data = scrape_nhentai_with_selenium(search_term, page)
+        results = data.get("results", [])
+        total_pages = data.get("total_pages", 1)
+        total_results = data.get("total_results", 0)
+        
+        json_results = []
+        for result in results:
+            json_results.append({
+                "code": result.get("code", ""),
+                "name": result.get("name", ""),
+                "image_links": result.get("image_links", []),
+                "total_pages": result.get("total_pages", 0)
+            })
+        
+        return jsonify({
+            "success": True,
+            "search_term": search_term,
+            "page": page,
+            "total_pages": total_pages,
+            "total_results": total_results,
+            "results": json_results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@explorer.route("/api/json/s3h", methods=["GET"])
+@login_required
+def search_3hentai_json():
+    search_term = request.args.get("q", "").strip()
+    page = request.args.get("p", "1")
+    
+    try:
+        page = int(page)
+    except:
+        page = 1
+    
+    if not search_term:
+        return jsonify({
+            "success": False,
+            "error": "Se requiere parámetro 'q' (término de búsqueda)"
+        }), 400
+    
+    try:
+        data = scrape_3hentai_search(search_term, page)
+        
+        json_results = []
+        if "resultados" in data and isinstance(data["resultados"], dict):
+            for key, result in data["resultados"].items():
+                json_results.append({
+                    "code": result.get("codigo", ""),
+                    "name": result.get("titulo", ""),
+                    "image_links": [result.get("imagen", "")]
+                })
+        
+        total_pages = data.get("total_paginas", 1)
+        total_results = data.get("total_resultados", 0)
+        
+        return jsonify({
+            "success": True,
+            "search_term": search_term,
+            "page": page,
+            "total_pages": total_pages,
+            "total_results": total_results,
+            "results": json_results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@explorer.route("/api/json/vnh/<int:code>", methods=["GET"])
+@login_required
+def view_nhentai_json(code):
+    try:
+        from command.get_files.nh_selenium import scrape_nhentai
+        result = scrape_nhentai(code)
+        
+        if not result.get("title") or not result.get("links"):
+            return jsonify({
+                "success": False,
+                "error": "No se pudo obtener la información de la galería"
+            }), 404
+        
+        import re
+        clean_title = re.sub(r'[<>:"/\\|?*]', '', result["title"])[:100]
+        
+        return jsonify({
+            "success": True,
+            "code": code,
+            "title": result["title"],
+            "clean_title": clean_title,
+            "tags": result.get("tags", {}),
+            "image_links": result.get("links", []),
+            "cover_image": result.get("links", [""])[0] if result.get("links") else ""
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error al cargar la galería: {str(e)}"
+        }), 500
+
+@explorer.route("/api/json/v3h/<code>", methods=["GET"])
+@login_required
+def view_3hentai_json(code):
+    try:
+        from command.get_files.h3_links import obtener_titulo_y_imagenes
+        
+        result = obtener_titulo_y_imagenes(code, cover=False)
+        
+        if not result.get("texto") or not result.get("imagenes"):
+            return jsonify({
+                "success": False,
+                "error": "No se pudo obtener la información de la galería"
+            }), 404
+        
+        import re
+        clean_title = re.sub(r'[<>:"/\\|?*]', '', result["texto"])[:100]
+        
+        return jsonify({
+            "success": True,
+            "code": code,
+            "title": result["texto"],
+            "clean_title": clean_title,
+            "tags": result.get("tags", {}),
+            "image_links": result.get("imagenes", []),
+            "cover_image": result.get("imagenes", [""])[0] if result.get("imagenes") else "",
+            "total_pages": result.get("total_paginas", 0)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Error al cargar la galería: {str(e)}"
+        }), 500
+
 def run_flask():
     explorer.run(host="0.0.0.0", port=10000)
