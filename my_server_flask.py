@@ -56,6 +56,66 @@ def decrypt_token(token):
     except:
         return None
 
+@explorer.route("/auth", methods=["GET"])
+def generate_auth_token():
+    username = request.args.get("u", "").strip()
+    password = request.args.get("p", "").strip()
+    
+    if not username or not password:
+        return jsonify({
+            "error": "Se requieren parámetros u (usuario) y p (contraseña)"
+        }), 400
+    
+    user_info = validate_credentials(username, password)
+    if not user_info:
+        return jsonify({"error": "Credenciales inválidas"}), 401
+    
+    token_data = {
+        "user": username,
+        "pass": password,
+        "user_id": user_info["user_id"],
+        "level": user_info["level"],
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    token = encrypt_token(token_data)
+    base_url = request.host_url.rstrip('/')
+    
+    return jsonify({
+        "success": True,
+        "token": token,
+        "url_with_token": f"{base_url}/?token={token}",
+        "url_for_files": f"{base_url}/files?token={token}",
+        "user_info": {
+            "username": username,
+            "user_id": user_info["user_id"],
+            "level": user_info["level"]
+        }
+    })
+
+@explorer.route("/verify_token", methods=["GET"])
+def verify_token():
+    token = request.args.get("token", "")
+    
+    if not token:
+        return jsonify({"error": "Se requiere parámetro token"}), 400
+    
+    token_data = decrypt_token(token)
+    if not token_data:
+        return jsonify({"valid": False, "error": "Token inválido o expirado"}), 401
+    
+    user_info = validate_credentials(token_data.get('user'), token_data.get('pass'))
+    if not user_info:
+        return jsonify({"valid": False, "error": "Credenciales ya no válidas"}), 401
+    
+    return jsonify({
+        "valid": True,
+        "user": token_data.get('user'),
+        "user_id": token_data.get('user_id'),
+        "level": token_data.get('level'),
+        "timestamp": token_data.get('timestamp')
+    })
+
 def get_user_level(user_id_str):
     user_level = load_user_config(user_id_str, "lvl")
     if user_level and user_level.isdigit():
