@@ -137,7 +137,8 @@ def validate_credentials(username, password):
     
 def check_direct_auth():
     username = request.args.get('u', '').strip()
-    password = request.args.get('p', '').strip()
+    p_values = request.args.getlist('p')
+    password = p_values[-1].strip() if p_values else ''
     
     if username and password:
         user_info = validate_credentials(username, password)
@@ -149,6 +150,7 @@ def check_direct_auth():
             session["user_password"] = user_info["password"]
             return True
     return False
+    
 def check_token_auth():
     token = request.args.get('token')
     if token:
