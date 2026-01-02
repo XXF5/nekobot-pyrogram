@@ -134,7 +134,21 @@ def validate_credentials(username, password):
             user_level = get_user_level(uid)
             return {"user_id": uid, "username": username, "level": user_level, "password": password}
     return None
-
+    
+def check_direct_auth():
+    username = request.args.get('u', '').strip()
+    password = request.args.get('p', '').strip()
+    
+    if username and password:
+        user_info = validate_credentials(username, password)
+        if user_info:
+            session["logged_in"] = True
+            session["username"] = user_info["username"]
+            session["user_id"] = user_info["user_id"]
+            session["user_level"] = user_info["level"]
+            session["user_password"] = user_info["password"]
+            return True
+    return False
 def check_token_auth():
     token = request.args.get('token')
     if token:
@@ -149,14 +163,16 @@ def check_token_auth():
                 session["user_password"] = user_info["password"]
                 return True
     return False
-
+    
 def login_required(f):
     def wrapper(*args, **kwargs):
-        if not check_token_auth() and not session.get("logged_in"):
+        if not check_token_auth() and not check_direct_auth() and not session.get("logged_in"):
             return redirect("/login")
         return f(*args, **kwargs)
     wrapper.__name__ = f.__name__
     return wrapper
+
+
 
 def level_required(min_level):
     def decorator(f):
